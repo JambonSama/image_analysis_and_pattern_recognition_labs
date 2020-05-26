@@ -21,7 +21,7 @@ def split_objects(frame):
     red1 = cv.inRange(hsv_frame, (R_H1-10, R_S-80, R_V-80), (R_H1+10, R_S+80, R_V+80))
     red2 = cv.inRange(hsv_frame, (R_H2-10, R_S-80, R_V-80), (R_H2+10, R_S+80, R_V+80))
     blue = cv.inRange(hsv_frame, (B_H -20, B_S-60, B_V-60), (B_H +20, B_S+60, B_V+60))
-    black = cv.inRange(hsv_frame, (0, 0, 0), (180, 250, 100))
+    black = cv.inRange(hsv_frame, (0, 0, 0), (180, 250, 120))
     return red1+red2, blue, black
 
 def detect_arrow_position(frame):
@@ -35,10 +35,10 @@ def applyMorphology(img):
     kernel = np.zeros((3,3), np.uint8)
     cv.circle(img=kernel, center=(1,1), radius=1, color=255, thickness=-1)
     result = img.copy()
-    result = cv.morphologyEx(img, cv.MORPH_DILATE, kernel, iterations=5)
+    result = cv.morphologyEx(img, cv.MORPH_DILATE, kernel, iterations=4)
     return result
 
-def detectNumbersSymbols(img):
+def detectNumbersSymbols(img, nom):
     _, blue_im, black_im = split_objects(img)
     im = blue_im + black_im
     dilate_im = applyMorphology(im)
@@ -65,7 +65,7 @@ def detectNumbersSymbols(img):
         else :
             box = cv.boxPoints(rect)
             cv.drawContours(img, [np.intp(box)], 0, [255, 0, 0])
-    cv.imshow("Box detection", img)
+    cv.imshow(nom, img)
     return image_list, position_list
         
     
@@ -87,9 +87,9 @@ def main():
         rotated_test = cv.warpAffine(test, rotation_matrix, (test.shape[1], test.shape[0]))
         cv.imshow("Rotated image", rotated_test)
         
-        images, positions = detectNumbersSymbols(frame)
+        images, positions = detectNumbersSymbols(frame, 'normal')
 
-        images_r,_ = detectNumbersSymbols(rotated_test)
+        images_r,_ = detectNumbersSymbols(rotated_test, 'rotated')
         fig, axes = plt.subplots(2, len(images), figsize=(12, 3))
         for c, image in enumerate(images):
             axes[0][c].imshow(image, cmap='gray')
