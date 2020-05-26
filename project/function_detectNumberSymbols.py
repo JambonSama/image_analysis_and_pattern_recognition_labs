@@ -28,24 +28,28 @@ def applyMorphology(img):
 def detectNumbersSymbols(img):
     _, blue_im, black_im = split_objects(img)
     im = blue_im + black_im
-
     dilate_im = applyMorphology(im)
     contours, _ = cv.findContours(image=dilate_im, mode=cv.RETR_EXTERNAL, method=cv.CHAIN_APPROX_SIMPLE)
-
     image_list = []
     position_list = []
 
     for contour in contours:
-        (x, y), (width, height), angle = cv.minAreaRect(contour)
-         
+        rect = cv.minAreaRect(contour)    
+        (x, y), (width, height), angle = rect    
         if width > 15 and height > 15 and width < 100 and height < 100:
-            position_list.append((x,y))
-            #im_R = np.zeros(im.shape)
-            R = cv.getRotationMatrix2D((x,y),angle,1)
-            im_R = cv.warpAffine(im, R, (720,480))
-            #extract_im = np.zeros((int(width/2)*2,int(height/2)*2))
-            extract_im = im_R[int(y-height/2):int(y+height/2),int(x-width/2):int(x+width/2)]
-            resize_im = cv.resize(extract_im, (28,28), interpolation=cv.INTER_AREA)
+            position_list.append((x, y))
+            rotation_matrix = cv.getRotationMatrix2D((x, y), angle, 1)
+            rotated_im = cv.warpAffine(im, rotation_matrix, (img.shape[1], img.shape[0]))
+            extract_im = rotated_im[int(y-height/2):int(y+height/2), int(x-width/2):int(x+width/2)]
+            resize_im = cv.resize(extract_im, (28, 28), interpolation=cv.INTER_AREA)
             image_list.append(resize_im)
-    
+
+    #         # Print box detection
+    #         box = cv.boxPoints(rect)
+    #         cv.drawContours(img, [np.intp(box)], 0, [0, 255, 0])
+    #         cv.circle(img, (int(x),int(y)), radius=2, color=(0,0,255), thickness=-1)
+    #     else :
+    #         box = cv.boxPoints(rect)
+    #         cv.drawContours(img, [np.intp(box)], 0, [255, 0, 0])
+    # cv.imshow("Box detection", img)
     return image_list, position_list
