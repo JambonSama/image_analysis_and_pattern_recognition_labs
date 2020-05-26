@@ -104,9 +104,25 @@ class OCR:
 
         return predictions[0]
 
+    def get_sign(self, image):
+        # start by counting the number of contours
+        # if 3 => division, 2 => equal, 1 => other
+        num_shapes,_ = cv.connectedComponents(image=image)
+        #print(num_shapes-1)
+        if num_shapes-1 == 3:
+            return "/"
+        elif num_shapes-1 == 2:
+            return "="
+        else:
+            if np.sum(image == 1) > 170:
+                return "*"
+            else:
+                return "+"
+
 
 def get_eqn_result(string):
-    return eval(string)
+    # remove the equal sign before the eval. 
+    return eval(string.replace("=","")) 
 
 def split_objects(frame):
     """
@@ -222,17 +238,17 @@ def main():
         for c, image in enumerate(images):
             axes[0][c].imshow(image, cmap='gray')
             axes[0][c].axis('off')
-            axes[0][c].set_title(ocr1.get_number(image))
+            axes[0][c].set_title(str(ocr1.get_number(image))+ocr1.get_sign(image))
         
         for c, image in enumerate(images_r):
             #print(c)
             axes[1][c].imshow(image, cmap='gray')
             axes[1][c].axis('off')
-            axes[1][c].set_title(ocr1.get_number(image))q
+            axes[1][c].set_title(str(ocr1.get_number(image))+ocr1.get_sign(image))
         plt.show()
     # When everything done, release the video capture object
 
-    print(get_eqn_result("2+2"))
+    print(get_eqn_result("2+2/2*2="))
 
     while cv.waitKey(300) != ord("q"):
         time.sleep(1)
