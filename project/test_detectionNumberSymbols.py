@@ -59,7 +59,6 @@ def functionTransform(img):
                
     xa = np.array(x)
     ya = np.array(y)
-      
     return xa, ya
 
 
@@ -108,18 +107,34 @@ def detectNumbersSymbols(img, nom, position_robot):
     cv.imshow(nom, img)
     return image_list, position_list
 
-def detectNumbersSymbols2(img):
+def detectNumbersSymbols2(img, position_robot):
     _, blue_im, black_im = split_objects(img)
     im = blue_im + black_im
+    # cv.imshow("black",im)
     dilate_im = applyMorphology(im)
     contours, _ = cv.findContours(image=dilate_im, mode=cv.RETR_EXTERNAL, method=cv.CHAIN_APPROX_SIMPLE)
     image_list = []
     position_list = []
 
     for contour in contours:
-        (x, y), (MA,ma),angle = cv.fitEllipse(contour)
-        
-    cv.imshow("test", img)
+        if contour.shape[0] > 5:
+            test = cv.fitEllipse(contour)
+            (x, y), (MA, ma), angle = test
+            if MA > 15 and ma > 15 and MA < 60 and ma < 60 and euclidian_distance((x, y), position_robot) > 20:
+                position_list.append((x,y))
+                rotation_matrix = cv.getRotationMatrix2D((x, y), angle, 1)
+                rotated_im = cv.warpAffine(im, rotation_matrix, (img.shape[1], img.shape[0]))
+                extract_im = rotated_im[int(y-ma/2)-4:int(y+ma/2)+4, int(x-MA/2)-4:int(x+MA/2)+4]
+                
+                resize_im = cv.resize(extract_im, (28, 28), interpolation=cv.INTER_AREA)
+                _, threshold_im = cv.threshold(resize_im, 150, 255, cv.THRESH_BINARY)
+                threshold_im = applyMorphology2(threshold_im)
+                image_list.append(threshold_im)
+    #             cv.ellipse(img, test,(0,255,0),2)
+    #         else:
+    #             cv.ellipse(img, test,(255,0,0),2)
+
+    # cv.imshow("test", img)
 
     return image_list, position_list
 
@@ -136,16 +151,16 @@ def main():
         ret, frame = cap.read()
 
         test = frame.copy()
-        rotation_matrix = cv.getRotationMatrix2D((test.shape[1]/2, test.shape[0]/2), 45, 1)
-        rotated_test = cv.warpAffine(test, rotation_matrix, (test.shape[1], test.shape[0]))
+        rotation_matrix = cv.getRotationMatrix2D((test.shape[1]/2, test.shape[0]/2), 55, 1)
+        rotated_test = cv.warpAffine(test, rotation_matrix, (test.shape[1], test.shape[0]), borderValue=1)
         cv.imshow("Rotated image", rotated_test)
         
-        images, positions = detectNumbersSymbols(frame, 'normal', (0,0))
-    
-        images_r, positions_r = detectNumbersSymbols(rotated_test, 'rotated', (0,0))
+        #images, positions = detectNumbersSymbols(frame, 'normal', (0,0))
+        images2, positions2 = detectNumbersSymbols2(frame, position_robot=(539, 354))
+        images_r, positions_r = detectNumbersSymbols2(rotated_test, (0,0))
         print(positions_r[6])
-        fig, axes = plt.subplots(2, len(images), figsize=(12, 3))
-        for c, image in enumerate(images):
+        fig, axes = plt.subplots(2, len(images2), figsize=(12, 3))
+        for c, image in enumerate(images2):
             axes[0][c].imshow(image, cmap='gray')
             axes[0][c].axis('off')
       
