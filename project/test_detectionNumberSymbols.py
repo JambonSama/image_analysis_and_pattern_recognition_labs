@@ -48,6 +48,21 @@ def applyMorphology2(img):
 def euclidian_distance(pos1,pos2):
     return (np.sqrt((pos1[0]-pos2[0])**2+(pos1[1]-pos2[1])**2))
 
+def functionTransform(img):
+    x = []
+    y = []
+    for i in range(img.shape[0]):
+        for j in range(img.shape[1]):
+            if img[i][j] != 0 :
+                x.append(i)
+                y.append(j)
+               
+    xa = np.array(x)
+    ya = np.array(y)
+      
+    return xa, ya
+
+
 def detectNumbersSymbols(img, nom, position_robot):
     _, blue_im, black_im = split_objects(img)
     im = blue_im + black_im
@@ -59,7 +74,7 @@ def detectNumbersSymbols(img, nom, position_robot):
     for contour in contours:
         rect = cv.minAreaRect(contour)    
         (x, y), (width, height), angle = rect    
-        if width > 15 and height > 15 and width < 40 and height < 40 and euclidian_distance((x, y), position_robot)> 20:
+        if width > 15 and height > 15 and width < 40 and height < 40 and euclidian_distance((x, y), position_robot) > 20:
             position_list.append((x, y))
             rotation_matrix = cv.getRotationMatrix2D((x, y), angle, 1)
             rotated_im = cv.warpAffine(im, rotation_matrix, (img.shape[1], img.shape[0]))
@@ -92,8 +107,21 @@ def detectNumbersSymbols(img, nom, position_robot):
             cv.drawContours(img, [np.intp(box)], 0, [255, 0, 0])
     cv.imshow(nom, img)
     return image_list, position_list
+
+def detectNumbersSymbols2(img):
+    _, blue_im, black_im = split_objects(img)
+    im = blue_im + black_im
+    dilate_im = applyMorphology(im)
+    contours, _ = cv.findContours(image=dilate_im, mode=cv.RETR_EXTERNAL, method=cv.CHAIN_APPROX_SIMPLE)
+    image_list = []
+    position_list = []
+
+    for contour in contours:
+        (x, y), (MA,ma),angle = cv.fitEllipse(contour)
         
-    
+    cv.imshow("test", img)
+
+    return image_list, position_list
 
 def main():
 
@@ -113,7 +141,7 @@ def main():
         cv.imshow("Rotated image", rotated_test)
         
         images, positions = detectNumbersSymbols(frame, 'normal', (0,0))
-
+    
         images_r, positions_r = detectNumbersSymbols(rotated_test, 'rotated', (0,0))
         print(positions_r[6])
         fig, axes = plt.subplots(2, len(images), figsize=(12, 3))
