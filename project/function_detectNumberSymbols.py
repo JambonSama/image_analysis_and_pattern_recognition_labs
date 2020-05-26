@@ -42,7 +42,8 @@ def detectNumbersSymbols(img):
             rotated_im = cv.warpAffine(im, rotation_matrix, (img.shape[1], img.shape[0]))
             extract_im = rotated_im[int(y-height/2):int(y+height/2), int(x-width/2):int(x+width/2)]
             resize_im = cv.resize(extract_im, (28, 28), interpolation=cv.INTER_AREA)
-            image_list.append(resize_im)
+            _, threshold_im = cv.threshold(resize_im,150,255,cv.THRESH_BINARY)
+            image_list.append(threshold_im*255)
 
     #         # Print box detection
     #         box = cv.boxPoints(rect)

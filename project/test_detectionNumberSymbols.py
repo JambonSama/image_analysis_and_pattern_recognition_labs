@@ -1,6 +1,8 @@
 import numpy as np
 import cv2 as cv
 import time
+import matplotlib.pyplot as plt
+#%matplotlib inline
 
 
 def split_objects(frame):
@@ -53,7 +55,8 @@ def detectNumbersSymbols(img):
             rotated_im = cv.warpAffine(im, rotation_matrix, (img.shape[1], img.shape[0]))
             extract_im = rotated_im[int(y-height/2):int(y+height/2), int(x-width/2):int(x+width/2)]
             resize_im = cv.resize(extract_im, (28, 28), interpolation=cv.INTER_AREA)
-            image_list.append(resize_im)
+            _, threshold_im = cv.threshold(resize_im,150,255,cv.THRESH_BINARY)
+            image_list.append(threshold_im*255)
 
             # Print box detection
             box = cv.boxPoints(rect)
@@ -87,17 +90,15 @@ def main():
         images, positions = detectNumbersSymbols(frame)
 
         images_r,_ = detectNumbersSymbols(rotated_test)
-
+        fig, axes = plt.subplots(2, len(images), figsize=(12, 3))
         for c, image in enumerate(images):
-            print(c)
-            name = "Base"+str(c)
-            cv.imshow(name, image)
-        
+            axes[0][c].imshow(image, cmap='gray')
+            axes[0][c].axis('off')
+      
         for c, image in enumerate(images_r):
-            print(c)
-            name = "Rotated"+str(c)
-            cv.imshow(name, image)
-        
+            axes[1][c].imshow(image, cmap='gray')
+            axes[1][c].axis('off')
+        plt.show()
     # When everything done, release the video capture object
     while cv.waitKey(300) != ord("q"):
         time.sleep(1)
