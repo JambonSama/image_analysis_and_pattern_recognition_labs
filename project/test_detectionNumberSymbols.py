@@ -38,7 +38,17 @@ def applyMorphology(img):
     result = cv.morphologyEx(img, cv.MORPH_DILATE, kernel, iterations=4)
     return result
 
-def detectNumbersSymbols(img, nom):
+def applyMorphology2(img):
+    kernel = np.zeros((3,3), np.uint8)
+    cv.circle(img=kernel, center=(1,1), radius=1, color=255, thickness=-1)
+    result = img.copy()
+    result = cv.morphologyEx(img, cv.MORPH_CLOSE, kernel, iterations=1)
+    return result
+
+def euclidian_distance(pos1,pos2):
+    return (np.sqrt((pos1[0]-pos2[0])**2+(pos1[1]-pos2[1])**2))
+
+def detectNumbersSymbols(img, nom, position_robot):
     _, blue_im, black_im = split_objects(img)
     im = blue_im + black_im
     dilate_im = applyMorphology(im)
@@ -49,13 +59,28 @@ def detectNumbersSymbols(img, nom):
     for contour in contours:
         rect = cv.minAreaRect(contour)    
         (x, y), (width, height), angle = rect    
-        if width > 15 and height > 15 and width < 100 and height < 100:
+        if width > 15 and height > 15 and width < 40 and height < 40 and euclidian_distance((x, y), position_robot)> 20:
             position_list.append((x, y))
             rotation_matrix = cv.getRotationMatrix2D((x, y), angle, 1)
             rotated_im = cv.warpAffine(im, rotation_matrix, (img.shape[1], img.shape[0]))
             extract_im = rotated_im[int(y-height/2):int(y+height/2), int(x-width/2):int(x+width/2)]
-            resize_im = cv.resize(extract_im, (28, 28), interpolation=cv.INTER_AREA)
+            
+            resize_im = extract_im.copy()
+           
+            if extract_im.shape[0] < 28 :
+                top = int((28-extract_im.shape[0])/2)
+                bottom = 28-extract_im.shape[0]-top
+                resize_im = cv.copyMakeBorder(resize_im, top, bottom, 0, 0, cv.BORDER_CONSTANT)
+            if extract_im.shape[1] < 28 :
+                left = int((28-extract_im.shape[1])/2)
+                right = 28-extract_im.shape[1]-left
+                resize_im = cv.copyMakeBorder(resize_im, 0, 0, left, right, cv.BORDER_CONSTANT)
+            if extract_im.shape[0] > 28 or extract_im.shape[1] > 28 :
+                resize_im = cv.resize(extract_im, (28, 28), interpolation=cv.INTER_AREA)
+           
+
             _, threshold_im = cv.threshold(resize_im,150,255,cv.THRESH_BINARY)
+            threshold_im = applyMorphology2(threshold_im)
             image_list.append(threshold_im*255)
 
             # Print box detection
@@ -87,9 +112,10 @@ def main():
         rotated_test = cv.warpAffine(test, rotation_matrix, (test.shape[1], test.shape[0]))
         cv.imshow("Rotated image", rotated_test)
         
-        images, positions = detectNumbersSymbols(frame, 'normal')
+        images, positions = detectNumbersSymbols(frame, 'normal', (0,0))
 
-        images_r,_ = detectNumbersSymbols(rotated_test, 'rotated')
+        images_r, positions_r = detectNumbersSymbols(rotated_test, 'rotated', (0,0))
+        print(positions_r[6])
         fig, axes = plt.subplots(2, len(images), figsize=(12, 3))
         for c, image in enumerate(images):
             axes[0][c].imshow(image, cmap='gray')
