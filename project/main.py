@@ -376,17 +376,21 @@ def detect_chars_pos_and_img(frame, robot_pos):
 
                 # Etract the char image for the rotated image
                 extracted_img = rotated_img[int(
-                    y-ma/2)-4:int(y+ma/2)+4, int(x-MA/2)-4:int(x+MA/2)+4]
+                    y-MA/2)-4:int(y+MA/2)+4, int(x-ma/2)-4:int(x+ma/2)+4]
 
                 # Resize the char image to have 28x28 pixel to by compatible with mlp
-                resized_img = cv.resize(
-                    extracted_img, (28, 28), interpolation=cv.INTER_AREA)
+                rapport = int(np.round(28/extracted_img.shape[0]*extracted_img.shape[1]))
+                resized_img = cv.resize(extracted_img, (rapport, 28), interpolation=cv.INTER_LINEAR)
+                left = int((28-resized_img.shape[1])/2)
+                right = 28 - resized_img.shape[1] - left
+                resized_img = cv.copyMakeBorder(resized_img, 0, 0, left, right, cv.BORDER_CONSTANT)
+
 
                 # Threshold and morphology to fil holes and binarize with 0 or 255
                 _, thresholded_img = cv.threshold(
                     resized_img, 150, 255, cv.THRESH_BINARY)
-                thresholded_img = cv.morphologyEx(
-                    thresholded_img, cv.MORPH_CLOSE, kernel, iterations=1)
+                # thresholded_img = cv.morphologyEx(
+                #     thresholded_img, cv.MORPH_CLOSE, kernel, iterations=1)
 
                 # Save the image and his position
                 chars_img.append(thresholded_img)
