@@ -376,14 +376,14 @@ def detect_chars_pos_and_img(frame, robot_pos):
 
                 # Etract the char image for the rotated image
                 extracted_img = rotated_img[int(
-                    y-MA/2)-4:int(y+MA/2)+4, int(x-ma/2)-4:int(x+ma/2)+4]
+                    y-MA/2):int(y+MA/2), int(x-ma/2)-4:int(x+ma/2)]
 
                 # Resize the char image to have 28x28 pixel to by compatible with mlp
-                rapport = int(np.round(28/extracted_img.shape[0]*extracted_img.shape[1]))
-                resized_img = cv.resize(extracted_img, (rapport, 28), interpolation=cv.INTER_LINEAR)
+                rapport = int(np.round(20/extracted_img.shape[0]*extracted_img.shape[1]))
+                resized_img = cv.resize(extracted_img, (rapport, 20), interpolation=cv.INTER_LINEAR)
                 left = int((28-resized_img.shape[1])/2)
                 right = 28 - resized_img.shape[1] - left
-                resized_img = cv.copyMakeBorder(resized_img, 0, 0, left, right, cv.BORDER_CONSTANT)
+                resized_img = cv.copyMakeBorder(resized_img, 4, 4, left, right, cv.BORDER_CONSTANT)
 
 
                 # Threshold and morphology to fil holes and binarize with 0 or 255
