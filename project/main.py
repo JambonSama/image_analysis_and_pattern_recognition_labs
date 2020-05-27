@@ -404,10 +404,6 @@ def detect_chars(frame, robot_pos):
     chars = determine_chars(chars_img)
     return chars_pos, chars
 
-def string_to_result(string):
-    # Remove the equal sign before the eval. 
-    return eval(string.replace("=","")) 
-
 def main(input_filename, output_filename):
     """
     Main function of program.
@@ -435,8 +431,8 @@ def main(input_filename, output_filename):
     i = 0
 
     # Lists of symbols
-    formula = []
     robot_pos = []
+    formula = ""
 
     # Read until video is completed
     while capture_video.isOpened():
@@ -460,9 +456,11 @@ def main(input_filename, output_filename):
                 robot_pos_threshold = 35
                 if norm((pos[0]-robot_pos[-1][0], pos[1]-robot_pos[-1][1])) < robot_pos_threshold:
                     if len(formula) % 2 == 0:
-                        formula.append(chars[i][0])  # add char to formula
+                        formula += chars[i][0]  # add char to formula
                     else:
-                        formula.append(chars[i][1])
+                        formula += chars[i][1]
+                        if formula[-1] == '=':
+                            formula += f"{eval(formula[:-1]):0.3f}"
                     # delete char from list so as to not add twice while in the same circle
                     del chars_pos[i]
                     del chars[i]  # same as above
@@ -505,8 +503,7 @@ def main(input_filename, output_filename):
     output_video.release()
 
     # Print the result
-    print(f"{formula}")
-    print(string_to_result(''.join(formula)))
+    print(f"Formula : {formula}")
 
     # Closes all the frames
     cv.destroyAllWindows()
