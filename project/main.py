@@ -280,10 +280,8 @@ class OCR:
             if ratio > 2:
                 return "-"
             if m[1] < 0.1:
-                print(str(m)+"*")
                 return "*"
             else:
-                print(str(m)+"+")
                 return "+"
 
 def split(frame, b1, b2):
@@ -332,7 +330,7 @@ def determine_chars(chars_img):
     using the MLP for classification.
     """
     ocr1 = OCR()
-    # print(ocr1.compute_test_score())
+    #print(ocr1.compute_test_score())
 
     chars = []
 
