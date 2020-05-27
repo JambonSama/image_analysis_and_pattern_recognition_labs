@@ -366,7 +366,7 @@ def detect_chars_pos_and_img(frame, robot_pos):
             # Verifie if the fit ellipse is big enough and not the robot
             r = range(5, 60)
             R = range(15, 60)
-            robot_pos_threshold = 35
+            robot_pos_threshold = 50
             if int(ma) in r and int(MA) in R and norm((x-robot_pos[0], y-robot_pos[1])) > robot_pos_threshold:
 
                 # Rotate the image to allign the big axis verticaly
@@ -414,7 +414,7 @@ def main(input_filename, output_filename):
     r1 = [[10, 10], [170, 80], [170, 80]]  # first red (around 0+ hue)
     r2 = [[170, 10], [170, 80], [170, 80]]  # second red (around 0- hue)
     b1 = [[118, 20], [150, 60], [110, 60]]  # blue
-    b2 = [[90, 90], [125, 125], [60, 60]]  # black
+    b2 = [[90, 90], [130, 130], [60, 60]]  # black
 
     # Check if camera opened successfully
     if not capture_video.isOpened():
