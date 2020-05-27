@@ -317,11 +317,11 @@ def detect_chars(frame, robot_pos):
     return chars_pos, chars
 
 
-def main():
+def main(input_filename, output_filename):
     """
     Main function of program.
     """
-    capture_video = cv.VideoCapture("../data/robot_parcours_1.avi")
+    capture_video = cv.VideoCapture(input_filename)
 
     # HSV boundaries for color detection
     r1 = [[10, 10], [170, 80], [170, 80]]  # first red (around 0+ hue)
@@ -331,13 +331,13 @@ def main():
 
     # Check if camera opened successfully
     if not capture_video.isOpened():
-        print("Error opening video stream or file")
+        print("Error opening video stream or file.")
         return
 
     # Configuring output video encoding
     width, height = int(capture_video.get(3)), int(capture_video.get(4))
     fourcc = cv.VideoWriter_fourcc('F', 'M', 'P', '4')
-    output_video = cv.VideoWriter('output.avi', fourcc, 2.0, (width, height))
+    output_video = cv.VideoWriter(output_filename, fourcc, 2.0, (width, height))
 
     # Frame counter
     i = 0
@@ -385,7 +385,7 @@ def main():
                 if i > 0:
                     p1 = (int(robot_pos[i-1][0]), int(robot_pos[i-1][1]))
                     p2 = (int(robot_pos[i][0]), int(robot_pos[i][1]))
-                    cv.line(frame, p1, p2, color=(0, 0, 255), thickness=3)
+                    cv.line(frame, p1, p2, color=(0, 0, 255), thickness=2)
 
             # Write info
             info = f"Formula : {formula}"
@@ -420,5 +420,12 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Process the video file.")
+    parser.add_argument("input", nargs=1, default="../data/robot_parcours_1.avi", type=str,
+                        help="Input file path.", metavar="<input file filename>")
+    parser.add_argument("-o", "--output", nargs=1, default="output.avi", type=str,
+                        help="Output file path.", metavar="<output file filename>")
+    args = parser.parse_args()
+
+    main(args.input[0], args.output[0])
     print("Done")
