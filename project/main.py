@@ -59,10 +59,12 @@ def detect_chars_pos_and_img(frame, robot_pos):
     Detect where all the characters are in the frame and returns the list of it.
     Frame is single channel image of the blue and black values (characters on the area).
     """
+    # Morphology to make the equal and divide one shape
     kernel = np.zeros((3, 3), np.uint8)
     cv.circle(img=kernel, center=(1, 1), radius=1, color=255, thickness=-1)
-
     dilated_img = cv.morphologyEx(frame, cv.MORPH_DILATE, kernel, iterations=4)
+
+    # Find the contours of images
     contours, _ = cv.findContours(
         image=dilated_img, mode=cv.RETR_EXTERNAL, method=cv.CHAIN_APPROX_SIMPLE)
     chars_pos = []
@@ -70,24 +72,35 @@ def detect_chars_pos_and_img(frame, robot_pos):
 
     for contour in contours:
         if contour.shape[0] > 5:
-            ellipse = cv.fitEllipse(contour)
-            (x, y), (MA, ma), angle = ellipse
+            # Find fit ellipse for each contour
+            (x, y), (MA, ma), angle = cv.fitEllipse(contour)
+
+            # Verifie if the fit ellipse is big enough and not the robot
             r = range(15, 60)
             if int(MA) in r and int(ma) in r and norm((x-robot_pos[0], y-robot_pos[1])) > 20:
-                chars_pos.append((x, y))
+
+                # Rotate the image to allign the big axis verticaly
                 rotation_matrix = cv.getRotationMatrix2D((x, y), angle, 1)
                 rotated_im = cv.warpAffine(
                     frame, rotation_matrix, (frame.shape[1], frame.shape[0]))
+
+                # Etract the char image for the rotated image
                 extracted_img = rotated_im[int(
                     y-ma/2)-4:int(y+ma/2)+4, int(x-MA/2)-4:int(x+MA/2)+4]
 
+                # Resize the char image to have 28x28 pixel to by compatible with mlp
                 resized_img = cv.resize(
                     extracted_img, (28, 28), interpolation=cv.INTER_AREA)
+
+                # Threshold and morphology to fil holes and binarize with 0 or 255 
                 _, thresholded_img = cv.threshold(
                     resized_img, 150, 255, cv.THRESH_BINARY)
                 thresholded_img = cv.morphologyEx(
                     thresholded_img, cv.MORPH_CLOSE, kernel, iterations=1)
+                
+                # Save the image and his position
                 chars_img.append(thresholded_img)
+                chars_pos.append((x, y))
 
     return chars_pos, chars_img
 
