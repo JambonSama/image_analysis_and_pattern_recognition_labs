@@ -7,6 +7,7 @@ import numpy as np
 from numpy.linalg import norm
 import cv2 as cv
 import pickle
+from sklearn.neural_network import MLPClassifier 
 
 class OCR:
     """
@@ -142,7 +143,7 @@ class OCR:
 
         return 1-(nb_wrong/10000)
 
-    def get_number(self, image):
+    def get_digit(self, image):
         """
         Returns the predicted number from the mlp
 
@@ -155,8 +156,8 @@ class OCR:
         rotated_im = cv.warpAffine(image, rotation_matrix, 
             (self.image_shape[1], self.image_shape[0]))
 
-        im_fl = self._flatten_image(image).astype('float32')*255
-        im_fl_reverse = self._flatten_image(rotated_im).astype('float32')*255
+        im_fl = self._flatten_image(image).astype('float32')
+        im_fl_reverse = self._flatten_image(rotated_im).astype('float32')
 
 
         prediction_normal = self.model.predict(im_fl)
@@ -234,21 +235,20 @@ def detect_arrow_position(frame):
     return (centroids[i][0], centroids[i][1])
 
 
-def determine_chars(chars_img, neural_network):
+def determine_chars(chars_img):
     """
     From the list of the characters images, returns a list of the characters,
     using the neural network for classification
     """
     ocr1 = OCR()
-    print(ocr1.compute_test_score())
+    # print(ocr1.compute_test_score())
 
     chars = []
 
     for image in chars_img:
-        num = str(ocr1.get_number(image))
+        digit = str(ocr1.get_digit(image))
         sign = ocr1.get_sign(image)
-        print(num+sign)
-        chars.append([num,sign])
+        chars.append([digit, sign])
 
     return chars
 
@@ -304,15 +304,13 @@ def detect_chars_pos_and_img(frame, robot_pos):
     return chars_pos, chars_img
 
 
-def detect_chars(frame, robot_pos, neural_network):
+def detect_chars(frame, robot_pos):
     """
     From a frame, returns a list of all the chars positions, and a list of all the chars.
     Frame is single channel image of the blue and black values (characters on the area).
     """
     chars_pos, chars_img = detect_chars_pos_and_img(frame, robot_pos)
-    chars = determine_chars(chars_img, neural_network)
-
-    chars = np.arange(len(chars_pos))
+    chars = determine_chars(chars_img)
     return chars_pos, chars
 
 
@@ -320,7 +318,7 @@ def main():
     """
     Main function of program.
     """
-    cap = cv.VideoCapture("../data/robot_parcours_1.avi")
+    capture_video = cv.VideoCapture("../data/robot_parcours_1.avi")
 
     # HSV boundaries for color detection
     r1 = [[10, 10], [170, 80], [170, 80]]  # first red (around 0+ hue)
@@ -329,8 +327,14 @@ def main():
     b2 = [[90, 90], [125, 125], [60, 60]]  # black
 
     # Check if camera opened successfully
-    if not cap.isOpened():
+    if not capture_video.isOpened():
         print("Error opening video stream or file")
+        return
+
+    # Configuring output video encoding
+    width, height = int(capture_video.get(3)), int(capture_video.get(4))
+    fourcc = cv.VideoWriter_fourcc('F', 'M', 'P', '4')
+    output_video = cv.VideoWriter('output.avi', fourcc, 2.0, (width, height))
 
     # Frame counter
     i = 0
@@ -340,13 +344,10 @@ def main():
     robot_pos = []
 
     # Read until video is completed
-    while cap.isOpened():
+    while capture_video.isOpened():
         # Capture frame-by-frame
-        ret, frame = cap.read()
+        ret, frame = capture_video.read()
         if ret:
-            # Dimensions of the frame
-            height = frame.shape[0]
-
             # Conversion to HSV space for better color separation
             hsv_frame = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
 
@@ -356,17 +357,19 @@ def main():
 
             if i == 0:
                 chars_img = split(hsv_frame, b1, b2)
-                chars_pos, chars = detect_chars(
-                    chars_img, robot_pos[0], neural_network=1)
+                chars_pos, chars = detect_chars(chars_img, robot_pos[0])
 
             # Retrieve the formula
             for i, pos in enumerate(chars_pos):
                 # if robot passes over char
                 if norm((pos[0]-robot_pos[-1][0], pos[1]-robot_pos[-1][1])) < 35:
-                    formula.append(chars[i])  # add char to formula
+                    if len(formula) % 2 == 0:
+                        formula.append(chars[i][0])  # add char to formula
+                    else:
+                        formula.append(chars[i][1])
                     # delete char from list so as to not add twice while in the same circle
                     del chars_pos[i]
-                    chars = np.delete(chars, i)  # same as above
+                    del chars[i] # same as above
 
                 # Highlight all the chars
                 cv.circle(frame, (int(pos[0]), int(pos[1])), radius=2,
@@ -388,6 +391,7 @@ def main():
 
             # Display the "video"
             cv.imshow("IAPR project", frame)
+            output_video.write(frame)
 
             # Press Q on keyboard to  exit
             if cv.waitKey(300) == ord("q"):
@@ -401,7 +405,8 @@ def main():
             break
 
     # When everything done, release the video capture object
-    cap.release()
+    capture_video.release()
+    output_video.release()
 
     # Print the result
     print(f"{formula}")
