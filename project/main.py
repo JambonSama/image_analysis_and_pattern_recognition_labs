@@ -306,7 +306,7 @@ def determine_chars(chars_img):
     using the MLP for classification.
     """
     ocr1 = OCR()
-    print(ocr1.compute_test_score())
+    # print(ocr1.compute_test_score())
 
     chars = []
 
@@ -428,7 +428,8 @@ def main(input_filename, output_filename):
             # Retrieve the formula
             for i, pos in enumerate(chars_pos):
                 # if robot passes over char
-                if norm((pos[0]-robot_pos[-1][0], pos[1]-robot_pos[-1][1])) < 35:
+                robot_pos_threshold = 35
+                if norm((pos[0]-robot_pos[-1][0], pos[1]-robot_pos[-1][1])) < robot_pos_threshold:
                     if len(formula) % 2 == 0:
                         formula.append(chars[i][0])  # add char to formula
                     else:
