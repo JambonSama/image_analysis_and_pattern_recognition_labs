@@ -258,7 +258,7 @@ class OCR:
             m = self._afd(image, N=5, method="cropped")
             if m[1] < 0.1:
                 return "*"
-            else:
+            elif m[1] < 0.4:
                 return "+"
 
 
@@ -382,6 +382,9 @@ def detect_chars(frame, robot_pos):
     chars = determine_chars(chars_img)
     return chars_pos, chars
 
+def string_to_result(string):
+    # Remove the equal sign before the eval. 
+    return eval(string.replace("=","")) 
 
 def main(input_filename, output_filename):
     """
@@ -481,6 +484,7 @@ def main(input_filename, output_filename):
 
     # Print the result
     print(f"{formula}")
+    print(string_to_result(''.join(formula)))
 
     # Closes all the frames
     cv.destroyAllWindows()
