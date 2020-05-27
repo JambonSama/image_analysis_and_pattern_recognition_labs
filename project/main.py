@@ -4,11 +4,11 @@
 import gzip
 import os
 import pickle
+import argparse
 import numpy as np
 from numpy.linalg import norm
 import cv2 as cv
-from sklearn.neural_network import MLPClassifier 
-import argparse
+from sklearn.neural_network import MLPClassifier
 
 class OCR:
     """
@@ -274,11 +274,12 @@ def detect_chars_pos_and_img(frame, robot_pos):
     for contour in contours:
         if contour.shape[0] > 5:
             # Find fit ellipse for each contour
-            (x, y), (MA, ma), angle = cv.fitEllipse(contour)
+            (x, y), (ma, MA), angle = cv.fitEllipse(contour)
 
             # Verifie if the fit ellipse is big enough and not the robot
             r = range(15, 60)
-            if int(MA) in r and int(ma) in r and norm((x-robot_pos[0], y-robot_pos[1])) > 20:
+            R = range(5, 60)
+            if int(ma) in r and int(MA) in R and norm((x-robot_pos[0], y-robot_pos[1])) > 50:
 
                 # Rotate the image to allign the big axis verticaly
                 rotation_matrix = cv.getRotationMatrix2D((x, y), angle, 1)
