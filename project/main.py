@@ -11,17 +11,17 @@ import cv2 as cv
 import math
 from sklearn.neural_network import MLPClassifier
 
+
 class OCR:
     """
     Converts an image into a number or a sign
     Doesn't detect if it is a sign or a number.
 
     """
+
     def __init__(self):
         self.model = []
-
-
-        self.image_shape = (28,28)
+        self.image_shape = (28, 28)
 
         self.data_base_path = os.path.join(os.pardir, 'data')
         self.data_folder = 'lab-03-data'
@@ -50,8 +50,8 @@ class OCR:
             bytestream.read(16)
             buf = bytestream.read(np.prod(image_shape)*image_number)
             data = np.frombuffer(buf, dtype=np.uint8).astype(np.float32)
-            data = data.reshape(image_number, image_shape[0], 
-                image_shape[1])
+            data = data.reshape(image_number, image_shape[0],
+                                image_shape[1])
         return data
 
     def _extract_labels(self, filename, image_number):
@@ -68,8 +68,8 @@ class OCR:
         """
         Returns the image as 1 by 784 vector instead of 28*28.
         """
-        flattened_image = image.reshape(1, 
-            self.image_shape[0]*self.image_shape[1])
+        flattened_image = image.reshape(1,
+                                        self.image_shape[0]*self.image_shape[1])
         return flattened_image
 
     def _prepare_number_training_and_testing(self):
@@ -80,29 +80,29 @@ class OCR:
         train_set_size = 60000
         test_set_size = 10000
 
-        data_part2_folder = os.path.join(self.data_base_path, 
-            self.data_folder, 'part2')
-        train_images_path = os.path.join(data_part2_folder, 
-            'train-images-idx3-ubyte.gz')
-        train_labels_path = os.path.join(data_part2_folder, 
-            'train-labels-idx1-ubyte.gz')
-        test_images_path = os.path.join(data_part2_folder, 
-            't10k-images-idx3-ubyte.gz')
-        test_labels_path = os.path.join(data_part2_folder, 
-            't10k-labels-idx1-ubyte.gz')
+        data_part2_folder = os.path.join(self.data_base_path,
+                                         self.data_folder, 'part2')
+        train_images_path = os.path.join(data_part2_folder,
+                                         'train-images-idx3-ubyte.gz')
+        train_labels_path = os.path.join(data_part2_folder,
+                                         'train-labels-idx1-ubyte.gz')
+        test_images_path = os.path.join(data_part2_folder,
+                                        't10k-images-idx3-ubyte.gz')
+        test_labels_path = os.path.join(data_part2_folder,
+                                        't10k-labels-idx1-ubyte.gz')
 
-        train_images = self._extract_data(train_images_path, self.image_shape, 
-            train_set_size)
+        train_images = self._extract_data(train_images_path, self.image_shape,
+                                          train_set_size)
         test_images = self._extract_data(test_images_path, self.image_shape,
-            test_set_size)
-        self.train_labels = self._extract_labels(train_labels_path, 
-            train_set_size)
-        self.test_labels = self._extract_labels(test_labels_path, 
-            test_set_size)
+                                         test_set_size)
+        self.train_labels = self._extract_labels(train_labels_path,
+                                                 train_set_size)
+        self.test_labels = self._extract_labels(test_labels_path,
+                                                test_set_size)
         self.flattened_training_set = train_images.reshape(
             train_set_size, self.image_shape[0]*self.image_shape[1])
         self.flattened_testing_set = test_images.reshape(test_set_size,
-            self.image_shape[0]*self.image_shape[1])
+                                                         self.image_shape[0]*self.image_shape[1])
 
         self.flattened_training_set, self.train_labels = self._remove_nine(
             self.flattened_training_set, self.train_labels)
@@ -116,53 +116,55 @@ class OCR:
         # Definition of the used models
         if os.path.isfile('model.mlp'):
             print("Already trained model found")
-            self.model = pickle.load(open('model.mlp','rb'))
+            self.model = pickle.load(open('model.mlp', 'rb'))
         else:
             print("No previous model found.\nTraining new model and",
-                " saving it to ./model.mlp")
+                  " saving it to ./model.mlp")
 
             self._prepare_number_training_and_testing()
-            self.model = MLPClassifier(hidden_layer_sizes=(200, ), 
-                activation='relu', solver='adam', alpha=1e-3, 
-                batch_size = 'auto', learning_rate = 'constant', 
-                max_iter=200, shuffle = True, random_state=1, tol=0.0001, 
-                verbose = False, warm_start = False, early_stopping=True, 
-                validation_fraction=0.1, beta_1=0.9, beta_2=0.99999, 
-                epsilon=1e-08, n_iter_no_change=10)
+            self.model = MLPClassifier(hidden_layer_sizes=(200, ),
+                                       activation='relu', solver='adam', alpha=1e-3,
+                                       batch_size='auto', learning_rate='constant',
+                                       max_iter=200, shuffle=True, random_state=1, tol=0.0001,
+                                       verbose=False, warm_start=False, early_stopping=True,
+                                       validation_fraction=0.1, beta_1=0.9, beta_2=0.99999,
+                                       epsilon=1e-08, n_iter_no_change=10)
 
             self.model.fit(self.flattened_training_set, self.train_labels)
 
-            pickle.dump(self.model, open('model.mlp','wb'))
+            pickle.dump(self.model, open('model.mlp', 'wb'))
 
     def _fd(self, img, N=None, method="cropped"):
         # Converting from RGB to grayscale if necessary
-        if len(img.shape)==3:
+        if len(img.shape) == 3:
             img = cv.cvtColor(src=img, code=cv.COLOR_RGB2GRAY)
-            
+
         # Converting to binary image
-        _, img = cv.threshold(src=img, thresh=0, maxval=1, type=(cv.THRESH_BINARY | cv.THRESH_OTSU))
-        [numrows, numcols]=img.shape
-        
+        _, img = cv.threshold(src=img, thresh=0, maxval=1,
+                              type=(cv.THRESH_BINARY | cv.THRESH_OTSU))
+        [numrows, numcols] = img.shape
+
         # Extracting the contours
-        contours,_ = cv.findContours(image=img, mode=cv.RETR_EXTERNAL, method=cv.CHAIN_APPROX_NONE)
+        contours, _ = cv.findContours(
+            image=img, mode=cv.RETR_EXTERNAL, method=cv.CHAIN_APPROX_NONE)
         contours = np.asarray(contours).squeeze()
-        
-        if len(contours.shape)==1:
+
+        if len(contours.shape) == 1:
             i = np.argmax([len(c) for c in contours])
-            contours = (contours[i][:,:]).squeeze()
-        
+            contours = (contours[i][:, :]).squeeze()
+
         # Complex periodic signal out of the contours
-        y = contours[:,0]
-        x = contours[:,1]
-        z = x + y*1j;
-        Nin = z.size;
-        
+        y = contours[:, 0]
+        x = contours[:, 1]
+        z = x + y*1j
+        Nin = z.size
+
         # Assigning default arg
         if N is None:
-            N = Nin;
+            N = Nin
 
         # Processing to get the fft
-        Z = np.fft.fft(z);
+        Z = np.fft.fft(z)
 
         # Magic to get the correct signal length
         if Nin < N:
@@ -172,16 +174,16 @@ class OCR:
         elif Nin > N:
             i = math.ceil(N/2)
 
-            if method=="cropped":
-                Z=np.concatenate((Z[:i],Z[-i:]))
-            elif method=="padded":
-                Z[i:-i]=0
+            if method == "cropped":
+                Z = np.concatenate((Z[:i], Z[-i:]))
+            elif method == "padded":
+                Z[i:-i] = 0
             else:
                 raise ValueError(f"Incorrect 'method' : {method}.")
 
         m = np.absolute(Z)
         phi = np.angle(Z)
-        
+
         return Z, Nin, m, phi, numrows, numcols
 
     def _afd(self, img, N=None, method="cropped"):
@@ -192,7 +194,7 @@ class OCR:
         Z = Z[2:-1]
         m = np.absolute(Z)
         return m
-        
+
     def compute_test_score(self):
         """
         Compute the score of the trained mlp against the test dataset.
@@ -202,7 +204,7 @@ class OCR:
         idx_list = []
         for idx, predicted in enumerate(output):
             if predicted != self.test_labels[idx]:
-                nb_wrong = nb_wrong + 1 
+                nb_wrong = nb_wrong + 1
                 idx_list.append(idx)
 
         return 1-(nb_wrong/10000)
@@ -217,8 +219,8 @@ class OCR:
         angle = 180
         rotation_matrix = cv.getRotationMatrix2D(
             (self.image_shape[0]/2, self.image_shape[1]/2), angle, 1)
-        rotated_im = cv.warpAffine(image, rotation_matrix, 
-            (self.image_shape[1], self.image_shape[0]))
+        rotated_im = cv.warpAffine(image, rotation_matrix,
+                                   (self.image_shape[1], self.image_shape[0]))
 
         im_fl = self._flatten_image(image).astype('float32')
         im_fl_reverse = self._flatten_image(rotated_im).astype('float32')
@@ -229,10 +231,10 @@ class OCR:
         prediction_reverse = self.model.predict(im_fl_reverse)
         probability_reverse = self.model.predict_proba(im_fl_reverse)
 
-        if probability_reverse[0,prediction_reverse] \
-            > probability_normal[0,prediction_normal]:
+        if probability_reverse[0, prediction_reverse] \
+                > probability_normal[0, prediction_normal]:
             return prediction_reverse[0]
-        else: 
+        else:
             return prediction_normal[0]
 
     def get_sign(self, image):
@@ -245,7 +247,7 @@ class OCR:
 
         # Start by counting the number of contours
         # if 3 => division, 2 => equal, 1 => other
-        num_shapes,_ = cv.connectedComponents(image=image)
+        num_shapes, _ = cv.connectedComponents(image=image)
 
         if (num_shapes - 1) == 3:
             return "/"
@@ -342,7 +344,8 @@ def detect_chars_pos_and_img(frame, robot_pos):
             # Verifie if the fit ellipse is big enough and not the robot
             r = range(5, 60)
             R = range(15, 60)
-            if int(ma) in r and int(MA) in R and norm((x-robot_pos[0], y-robot_pos[1])) > 50:
+            robot_pos_threshold = 35
+            if int(ma) in r and int(MA) in R and norm((x-robot_pos[0], y-robot_pos[1])) > robot_pos_threshold:
 
                 # Rotate the image to allign the big axis verticaly
                 rotation_matrix = cv.getRotationMatrix2D((x, y), angle, 1)
@@ -357,12 +360,12 @@ def detect_chars_pos_and_img(frame, robot_pos):
                 resized_img = cv.resize(
                     extracted_img, (28, 28), interpolation=cv.INTER_AREA)
 
-                # Threshold and morphology to fil holes and binarize with 0 or 255 
+                # Threshold and morphology to fil holes and binarize with 0 or 255
                 _, thresholded_img = cv.threshold(
                     resized_img, 150, 255, cv.THRESH_BINARY)
                 thresholded_img = cv.morphologyEx(
                     thresholded_img, cv.MORPH_CLOSE, kernel, iterations=1)
-                
+
                 # Save the image and his position
                 chars_img.append(thresholded_img)
                 chars_pos.append((x, y))
@@ -400,7 +403,8 @@ def main(input_filename, output_filename):
     # Configuring output video encoding
     width, height = int(capture_video.get(3)), int(capture_video.get(4))
     fourcc = cv.VideoWriter_fourcc('F', 'M', 'P', '4')
-    output_video = cv.VideoWriter(output_filename, fourcc, 2.0, (width, height))
+    output_video = cv.VideoWriter(
+        output_filename, fourcc, 2.0, (width, height))
 
     # Frame counter
     i = 0
@@ -436,7 +440,7 @@ def main(input_filename, output_filename):
                         formula.append(chars[i][1])
                     # delete char from list so as to not add twice while in the same circle
                     del chars_pos[i]
-                    del chars[i] # same as above
+                    del chars[i]  # same as above
 
                 # Highlight all the chars
                 cv.circle(frame, (int(pos[0]), int(pos[1])), radius=2,
