@@ -11,7 +11,6 @@ import cv2 as cv
 import math
 from sklearn.neural_network import MLPClassifier
 
-
 class OCR:
     """
     Converts an image into a number or a sign
@@ -237,6 +236,27 @@ class OCR:
         else:
             return prediction_normal[0]
 
+    def _getRatio(self, img):
+        _, threshholded_img = cv.threshold(src=img, thresh=0, maxval=255, type=(cv.THRESH_BINARY | cv.THRESH_OTSU))
+        
+        superimposed_img = threshholded_img.copy()
+        superimposed_img = cv.cvtColor(src=superimposed_img, code=cv.COLOR_GRAY2RGB)
+        
+        contour, _ = cv.findContours(image=threshholded_img, mode=cv.RETR_EXTERNAL, method=cv.CHAIN_APPROX_SIMPLE)
+        
+        minRect = cv.minAreaRect(contour[0])
+        (x, y), (width, height), angle = minRect
+        
+        box = cv.boxPoints(minRect)
+        cv.drawContours(superimposed_img, [np.intp(box)], 0, [255,0,0])
+
+        if width >= height:
+            ratio = width/height
+        else:
+            ratio = height/width
+        
+        return ratio, superimposed_img
+
     def get_sign(self, image):
         """
         Returns the predicted sign from the mlp
@@ -247,7 +267,7 @@ class OCR:
 
         # Start by counting the number of contours
         # if 3 => division, 2 => equal, 1 => other
-        num_shapes, _ = cv.connectedComponents(image=image)
+        num_shapes,_ = cv.connectedComponents(image=image)
 
         if (num_shapes - 1) == 3:
             return "/"
@@ -256,11 +276,15 @@ class OCR:
         else:
             # search the fourrier descriptor, the second one is good
             m = self._afd(image, N=5, method="cropped")
+            ratio, _ = self._getRatio(image)
+            if ratio > 2:
+                return "-"
             if m[1] < 0.1:
+                print(str(m)+"*")
                 return "*"
-            elif m[1] < 0.4:
+            else:
+                print(str(m)+"+")
                 return "+"
-
 
 def split(frame, b1, b2):
     """
