@@ -8,6 +8,7 @@ import argparse
 import numpy as np
 from numpy.linalg import norm
 import cv2 as cv
+import math
 from sklearn.neural_network import MLPClassifier
 
 class OCR:
@@ -105,6 +106,8 @@ class OCR:
 
         self.flattened_training_set, self.train_labels = self._remove_nine(
             self.flattened_training_set, self.train_labels)
+        self.flattened_testing_set, self.test_labels = self._remove_nine(
+            self.flattened_testing_set, self.test_labels)
 
     def _train_classifiers(self):
         """
@@ -119,17 +122,76 @@ class OCR:
                 " saving it to ./model.mlp")
 
             self._prepare_number_training_and_testing()
-            self.model = MLPClassifier(hidden_layer_sizes=(100, ), 
+            self.model = MLPClassifier(hidden_layer_sizes=(200, ), 
                 activation='relu', solver='adam', alpha=1e-3, 
                 batch_size = 'auto', learning_rate = 'constant', 
-                max_iter=2000, shuffle = True, random_state=1, tol=0.00001, 
-                verbose = False, warm_start = False, early_stopping=False, 
+                max_iter=200, shuffle = True, random_state=1, tol=0.0001, 
+                verbose = False, warm_start = False, early_stopping=True, 
                 validation_fraction=0.1, beta_1=0.9, beta_2=0.99999, 
                 epsilon=1e-08, n_iter_no_change=10)
 
             self.model.fit(self.flattened_training_set, self.train_labels)
 
             pickle.dump(self.model, open('model.mlp','wb'))
+
+    def _fd(self, img, N=None, method="cropped"):
+        # Converting from RGB to grayscale if necessary
+        if len(img.shape)==3:
+            img = cv.cvtColor(src=img, code=cv.COLOR_RGB2GRAY)
+            
+        # Converting to binary image
+        _, img = cv.threshold(src=img, thresh=0, maxval=1, type=(cv.THRESH_BINARY | cv.THRESH_OTSU))
+        [numrows, numcols]=img.shape
+        
+        # Extracting the contours
+        contours,_ = cv.findContours(image=img, mode=cv.RETR_EXTERNAL, method=cv.CHAIN_APPROX_NONE)
+        contours = np.asarray(contours).squeeze()
+        
+        if len(contours.shape)==1:
+            i = np.argmax([len(c) for c in contours])
+            contours = (contours[i][:,:]).squeeze()
+        
+        # Complex periodic signal out of the contours
+        y = contours[:,0]
+        x = contours[:,1]
+        z = x + y*1j;
+        Nin = z.size;
+        
+        # Assigning default arg
+        if N is None:
+            N = Nin;
+
+        # Processing to get the fft
+        Z = np.fft.fft(z);
+
+        # Magic to get the correct signal length
+        if Nin < N:
+            dst = img.copy()
+            cv.resize(img, dst, fx=2, fy=2, interpolation=cv.INTER_LINEAR)
+            Z, Nin, _, _, _, _ = _fd(dst, N, method)
+        elif Nin > N:
+            i = math.ceil(N/2)
+
+            if method=="cropped":
+                Z=np.concatenate((Z[:i],Z[-i:]))
+            elif method=="padded":
+                Z[i:-i]=0
+            else:
+                raise ValueError(f"Incorrect 'method' : {method}.")
+
+        m = np.absolute(Z)
+        phi = np.angle(Z)
+        
+        return Z, Nin, m, phi, numrows, numcols
+
+    def _afd(self, img, N=None, method="cropped"):
+        # AFD computes the adjusted Fourier Descriptors (invariant by translation, rotation, and scaling).
+        #   m = afd(img)
+        Z, _, _, _, _, _ = self._fd(img, N, method)
+        Z = Z/Z[1]
+        Z = Z[2:-1]
+        m = np.absolute(Z)
+        return m
         
     def compute_test_score(self):
         """
@@ -161,7 +223,6 @@ class OCR:
         im_fl = self._flatten_image(image).astype('float32')
         im_fl_reverse = self._flatten_image(rotated_im).astype('float32')
 
-
         prediction_normal = self.model.predict(im_fl)
         probability_normal = self.model.predict_proba(im_fl)
 
@@ -176,7 +237,7 @@ class OCR:
 
     def get_sign(self, image):
         """
-        Returns the predicted sign from the mlp.
+        Returns the predicted sign from the mlp
 
         image: 28 by 28 binary (1 and 0) matrix
         return: char of the detected sign
@@ -191,7 +252,9 @@ class OCR:
         elif (num_shapes - 1) == 2:
             return "="
         else:
-            if np.sum(image == 1) > 170:
+            # search the fourrier descriptor, the second one is good
+            m = self._afd(image, N=5, method="cropped")
+            if m[1] < 0.1:
                 return "*"
             else:
                 return "+"
@@ -243,7 +306,7 @@ def determine_chars(chars_img):
     using the MLP for classification.
     """
     ocr1 = OCR()
-    # print(ocr1.compute_test_score())
+    print(ocr1.compute_test_score())
 
     chars = []
 
@@ -277,8 +340,8 @@ def detect_chars_pos_and_img(frame, robot_pos):
             (x, y), (ma, MA), angle = cv.fitEllipse(contour)
 
             # Verifie if the fit ellipse is big enough and not the robot
-            r = range(15, 60)
-            R = range(5, 60)
+            r = range(5, 60)
+            R = range(15, 60)
             if int(ma) in r and int(MA) in R and norm((x-robot_pos[0], y-robot_pos[1])) > 50:
 
                 # Rotate the image to allign the big axis verticaly
