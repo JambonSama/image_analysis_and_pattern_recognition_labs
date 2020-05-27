@@ -46,14 +46,6 @@ def detect_arrow_position(frame):
     return (centroids[i][0], centroids[i][1])
 
 
-def extract_chars_img(frame, chars_pos):
-    """
-    From the list of characters positions in the frame, returns a list of the characters images.
-    Frame is single channel image of the blue and black values (characters on the area).
-    """
-    return 1
-
-
 def determine_chars(chars_img, neural_network):
     """
     From the list of the characters images, returns a list of the characters,
@@ -62,7 +54,7 @@ def determine_chars(chars_img, neural_network):
     return 1
 
 
-def detect_chars_pos(frame, robot_pos):
+def detect_chars_pos_and_img(frame, robot_pos):
     """
     Detect where all the characters are in the frame and returns the list of it.
     Frame is single channel image of the blue and black values (characters on the area).
@@ -74,15 +66,30 @@ def detect_chars_pos(frame, robot_pos):
     contours, _ = cv.findContours(
         image=dilated_img, mode=cv.RETR_EXTERNAL, method=cv.CHAIN_APPROX_SIMPLE)
     chars_pos = []
+    chars_img = []
 
     for contour in contours:
         if contour.shape[0] > 5:
             ellipse = cv.fitEllipse(contour)
-            (x, y), (MA, ma), _ = ellipse
+            (x, y), (MA, ma), angle = ellipse
             r = range(15, 60)
             if int(MA) in r and int(ma) in r and norm((x-robot_pos[0], y-robot_pos[1])) > 20:
                 chars_pos.append((x, y))
-    return chars_pos
+                rotation_matrix = cv.getRotationMatrix2D((x, y), angle, 1)
+                rotated_im = cv.warpAffine(
+                    frame, rotation_matrix, (frame.shape[1], frame.shape[0]))
+                extracted_img = rotated_im[int(
+                    y-ma/2)-4:int(y+ma/2)+4, int(x-MA/2)-4:int(x+MA/2)+4]
+
+                resized_img = cv.resize(
+                    extracted_img, (28, 28), interpolation=cv.INTER_AREA)
+                _, thresholded_img = cv.threshold(
+                    resized_img, 150, 255, cv.THRESH_BINARY)
+                thresholded_img = cv.morphologyEx(
+                    thresholded_img, cv.MORPH_CLOSE, kernel, iterations=1)
+                chars_img.append(thresholded_img)
+
+    return chars_pos, chars_img
 
 
 def detect_chars(frame, robot_pos, neural_network):
@@ -90,8 +97,7 @@ def detect_chars(frame, robot_pos, neural_network):
     From a frame, returns a list of all the chars positions, and a list of all the chars.
     Frame is single channel image of the blue and black values (characters on the area).
     """
-    chars_pos = detect_chars_pos(frame, robot_pos)
-    chars_img = extract_chars_img(frame, chars_pos)
+    chars_pos, chars_img = detect_chars_pos_and_img(frame, robot_pos)
     chars = determine_chars(chars_img, neural_network)
 
     chars = np.arange(len(chars_pos))
@@ -138,7 +144,8 @@ def main():
 
             if i == 0:
                 chars_img = split(hsv_frame, b1, b2)
-                chars_pos, chars = detect_chars(chars_img, robot_pos[0], neural_network=1)
+                chars_pos, chars = detect_chars(
+                    chars_img, robot_pos[0], neural_network=1)
 
             # Retrieve the formula
             for i, pos in enumerate(chars_pos):
@@ -150,12 +157,12 @@ def main():
                     chars = np.delete(chars, i)  # same as above
 
                 # Highlight all the chars
-                cv.circle(frame, (int(pos[0]), int(pos[1])), radius=2, color=(
-                    0, 255, 0), thickness=-1)
+                cv.circle(frame, (int(pos[0]), int(pos[1])), radius=2,
+                          color=(0, 255, 0), thickness=-1)
 
             # Highlight the robot positions
-            cv.circle(frame, (int(
-                robot_pos[-1][0]), int(robot_pos[-1][1])), radius=5, color=(0, 0, 255), thickness=-1)
+            cv.circle(frame, center=(int(robot_pos[-1][0]), int(robot_pos[-1][1])),
+                      radius=5, color=(0, 0, 255), thickness=-1)
             for i, _ in enumerate(robot_pos):
                 if i > 0:
                     p1 = (int(robot_pos[i-1][0]), int(robot_pos[i-1][1]))
@@ -164,11 +171,15 @@ def main():
 
             # Write info
             info = f"Formula : {formula}"
-            cv.putText(img=frame, text=info, org=(
-                10, height-10), fontFace=cv.FONT_HERSHEY_PLAIN, fontScale=1.5, color=(255, 0, 0), thickness=2)
+            cv.putText(img=frame, text=info, org=(10, height-10), fontFace=cv.FONT_HERSHEY_PLAIN,
+                       fontScale=1.5, color=(255, 0, 0), thickness=2)
 
             # Display the "video"
             cv.imshow("IAPR project", frame)
+
+            # Press Q on keyboard to  exit
+            if cv.waitKey(300) == ord("q"):
+                break
 
             # Frame counter
             i += 1
