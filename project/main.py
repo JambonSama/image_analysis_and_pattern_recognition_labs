@@ -3,11 +3,12 @@
 
 import gzip
 import os
+import pickle
 import numpy as np
 from numpy.linalg import norm
 import cv2 as cv
-import pickle
 from sklearn.neural_network import MLPClassifier 
+import argparse
 
 class OCR:
     """
@@ -31,18 +32,18 @@ class OCR:
         """
         Remove the nine "9" character from the given dataset
         As the nine is not used for this lab, we remove it to avoid false 
-        detection
+        detection.
 
         """
-        list = []
+        idx_list = []
         for idx, l in enumerate(labels):
             if l == 9:
-                list.append(idx)
-        return np.delete(dataset, list, axis=0), np.delete(labels, list)
+                idx_list.append(idx)
+        return np.delete(dataset, idx_list, axis=0), np.delete(labels, idx_list)
 
     def _extract_data(self, filename, image_shape, image_number):
         """
-        Unzip the MNIST dataset and stores the data in memory
+        Unzip the MNIST dataset and stores the data in memory.
         """
         with gzip.open(filename) as bytestream:
             bytestream.read(16)
@@ -54,7 +55,7 @@ class OCR:
 
     def _extract_labels(self, filename, image_number):
         """
-        Unzip the MNIST dataset and stores the labels in memory
+        Unzip the MNIST dataset and stores the labels in memory.
         """
         with gzip.open(filename) as bytestream:
             bytestream.read(8)
@@ -64,15 +65,16 @@ class OCR:
 
     def _flatten_image(self, image):
         """
-        Returns the image as 1 by 784 vector instead of 28*28
+        Returns the image as 1 by 784 vector instead of 28*28.
         """
         flattened_image = image.reshape(1, 
             self.image_shape[0]*self.image_shape[1])
         return flattened_image
 
     def _prepare_number_training_and_testing(self):
-        """Extracts the datasets for use in the mlp
-            stores the dataset without the character "9"
+        """
+        Extracts the datasets for use in the mlp
+        stores the dataset without the character "9".
         """
         train_set_size = 60000
         test_set_size = 10000
@@ -106,7 +108,7 @@ class OCR:
 
     def _train_classifiers(self):
         """
-        Trains the MLP with the stored training data 
+        Trains the MLP with the stored training data.
         """
         # Definition of the used models
         if os.path.isfile('model.mlp'):
@@ -131,7 +133,7 @@ class OCR:
         
     def compute_test_score(self):
         """
-        Compute the score of the trained mlp against the test dataset
+        Compute the score of the trained mlp against the test dataset.
         """
         output = self.model.predict(self.flattened_testing_set)
         nb_wrong = 0
@@ -145,7 +147,7 @@ class OCR:
 
     def get_digit(self, image):
         """
-        Returns the predicted number from the mlp
+        Returns the predicted number from the mlp.
 
         image: 28 by 28 binary (1 and 0) matrix
         return: char of the detected value
@@ -174,7 +176,7 @@ class OCR:
 
     def get_sign(self, image):
         """
-        Returns the predicted sign from the mlp
+        Returns the predicted sign from the mlp.
 
         image: 28 by 28 binary (1 and 0) matrix
         return: char of the detected sign
@@ -238,7 +240,7 @@ def detect_arrow_position(frame):
 def determine_chars(chars_img):
     """
     From the list of the characters images, returns a list of the characters,
-    using the neural network for classification
+    using the MLP for classification.
     """
     ocr1 = OCR()
     # print(ocr1.compute_test_score())
@@ -280,11 +282,11 @@ def detect_chars_pos_and_img(frame, robot_pos):
 
                 # Rotate the image to allign the big axis verticaly
                 rotation_matrix = cv.getRotationMatrix2D((x, y), angle, 1)
-                rotated_im = cv.warpAffine(
+                rotated_img = cv.warpAffine(
                     frame, rotation_matrix, (frame.shape[1], frame.shape[0]))
 
                 # Etract the char image for the rotated image
-                extracted_img = rotated_im[int(
+                extracted_img = rotated_img[int(
                     y-ma/2)-4:int(y+ma/2)+4, int(x-MA/2)-4:int(x+MA/2)+4]
 
                 # Resize the char image to have 28x28 pixel to by compatible with mlp
