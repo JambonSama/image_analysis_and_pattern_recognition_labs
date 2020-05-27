@@ -279,7 +279,8 @@ def detect_chars_pos_and_img(frame, robot_pos):
             # Verifie if the fit ellipse is big enough and not the robot
             r = range(15, 60)
             R = range(5, 60)
-            if int(ma) in r and int(MA) in R and norm((x-robot_pos[0], y-robot_pos[1])) > 50:
+            robot_pos_threshold = 35
+            if int(ma) in r and int(MA) in R and norm((x-robot_pos[0], y-robot_pos[1])) > robot_pos_threshold:
 
                 # Rotate the image to allign the big axis verticaly
                 rotation_matrix = cv.getRotationMatrix2D((x, y), angle, 1)
@@ -365,7 +366,8 @@ def main(input_filename, output_filename):
             # Retrieve the formula
             for i, pos in enumerate(chars_pos):
                 # if robot passes over char
-                if norm((pos[0]-robot_pos[-1][0], pos[1]-robot_pos[-1][1])) < 35:
+                robot_pos_threshold = 35
+                if norm((pos[0]-robot_pos[-1][0], pos[1]-robot_pos[-1][1])) < robot_pos_threshold:
                     if len(formula) % 2 == 0:
                         formula.append(chars[i][0])  # add char to formula
                     else:
