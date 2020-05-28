@@ -121,6 +121,15 @@ class DigitNet(nn.Module):
         return epoch_index - threshold
 
     def _fd(self, img, N=None, method="cropped"):
+        """
+        _fd computes the  Fourier Descriptors 
+        Parameters:
+            img: the image to compute the afd on
+            N: the number of fourrier descriptors to keep
+            method: cropped or padded
+        Returns: 
+            Z: array of fourrier descriptors
+        """
         # Converting from RGB to grayscale if necessary
         if len(img.shape) == 3:
             img = cv.cvtColor(src=img, code=cv.COLOR_RGB2GRAY)
@@ -174,9 +183,14 @@ class DigitNet(nn.Module):
 
     def _afd(self, img, N=None, method="cropped"):
         """
-        AFD computes the adjusted Fourier Descriptors 
+        _afd computes the adjusted Fourier Descriptors 
         (invariant by translation, rotation, and scaling).
-        m = afd(img)
+        Parameters:
+            img: the image to compute the afd on
+            N: the number of fourrier descriptors to keep
+            method: cropped or padded
+        Returns: 
+            m: array of fourrier descriptors (without the 0 and 1 fd)
         """
 
         Z, _, _, _, _, _ = self._fd(img, N, method)
@@ -186,35 +200,41 @@ class DigitNet(nn.Module):
         return m
 
     def _getRatio(self, img):
+        """
+        Returns the height width ratio of the minimal surrounding rectangle arround 
+        the object in the image.
+        Parameters:
+            image: the image to get the ratio from
+        Returns:
+            ratio: the object width/height ratio. Always >= 1
+        """
+        # Thresholding the image to binary
         _, threshholded_img = cv.threshold(
             src=img, thresh=0, maxval=255, type=(cv.THRESH_BINARY | cv.THRESH_OTSU))
 
-        superimposed_img = threshholded_img.copy()
-        superimposed_img = cv.cvtColor(
-            src=superimposed_img, code=cv.COLOR_GRAY2RGB)
-
+        # find the object contours
         contour, _ = cv.findContours(
             image=threshholded_img, mode=cv.RETR_EXTERNAL, method=cv.CHAIN_APPROX_SIMPLE)
 
+        # serach the minimum area rectangle around the object
         min_rect = cv.minAreaRect(contour[0])
         (_, _), (width, height), _ = min_rect
 
-        box = cv.boxPoints(min_rect)
-        cv.drawContours(superimposed_img, [np.intp(box)], 0, [255, 0, 0])
-
+        # Get the ratio always >= 1
         if width >= height:
             ratio = width/height
         else:
             ratio = height/width
 
-        return ratio, superimposed_img
+        return ratio
 
     def get_digit(self, image):
         """
         Returns the predicted number from the CNN.
-
-        image: 28 by 28 binary (1 and 0) matrix
-        return: char of the detected value
+        Parameters:
+            image: 28 by 28 binary (1 and 0) matrix
+        Returns: 
+            digit: char of the detected value
         """
         t = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))])
         img = Image.fromarray(image)
@@ -227,25 +247,29 @@ class DigitNet(nn.Module):
     def get_sign(self, image):
         """
         Returns the predicted sign from the mlp
-
-        image: 28 by 28 binary (1 and 0) matrix
-        return: char of the detected sign
+        Parameters:
+            image: 28 by 28 binary (1 and 0) matrix
+        Returns: 
+            sign: char of the detected sign
         """
-
-        # Start by counting the number of contours
-        # if 3 => division, 2 => equal, 1 => other
-        num_shapes, _ = cv.connectedComponents(image=image)
-
         sign = ""
 
+        # Start by counting the number of contours of the binarised image
+        _, threshholded_img = cv.threshold(
+            src=image, thresh=0, maxval=255, type=(cv.THRESH_BINARY | cv.THRESH_OTSU))
+
+        num_shapes, _ = cv.connectedComponents(image=threshholded_img)
+        
+        # if 3 => division, 2 => equal, 1 => other
         if (num_shapes - 1) == 3:
             sign = "/"
         elif (num_shapes - 1) == 2:
             sign = "="
         else:
-            # search the fourrier descriptor, the second one is good
+            # search the fourrier descriptor, the second one is used
             m = self._afd(image, N=5, method="cropped")
-            ratio, _ = self._getRatio(image)
+            # Calculate the ratio to detect the "-""
+            ratio = self._getRatio(image)
             if ratio > 2:
                 sign = "-"
             elif m[1] < 0.1:
