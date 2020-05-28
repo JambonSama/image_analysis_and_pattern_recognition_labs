@@ -121,7 +121,7 @@ def detect_chars_pos_and_img_print(frame, robot_pos, base_image):
             # Rotate image to align vertically
             rotation_matrix = cv.getRotationMatrix2D((int(w/2), int(h/2)), alpha, 1)
             rotated_img = cv.warpAffine(
-                extracted_img, rotation_matrix, (np.max([extracted_img.shape[1],extracted_img.shape[0]])+5,np.max([extracted_img.shape[1],extracted_img.shape[0]])))
+                extracted_img, rotation_matrix, (np.max([extracted_img.shape[1],extracted_img.shape[0]]),np.max([extracted_img.shape[1],extracted_img.shape[0]])))
             # Normalize image for the CNN
             normalized_img = normalize_img(rotated_img)
             # Add position of char to the list
@@ -153,7 +153,7 @@ def main():
 
     if cap.isOpened():
         ret, frame = cap.read()
-        #frame = cv.imread("FirstImageMod.jpg")
+        frame = cv.imread("FirstImageMod.jpg")
         
         hsv_frame = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
         chars_img = split(hsv_frame, b1, b2)
