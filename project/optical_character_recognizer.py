@@ -252,13 +252,15 @@ class DigitNet(nn.Module):
         Returns: 
             sign: char of the detected sign
         """
-
-        # Start by counting the number of contours
-        # if 3 => division, 2 => equal, 1 => other
-
-        num_shapes, _ = cv.connectedComponents(image=image)
         sign = ""
 
+        # Start by counting the number of contours of the binarised image
+        _, threshholded_img = cv.threshold(
+            src=image, thresh=0, maxval=255, type=(cv.THRESH_BINARY | cv.THRESH_OTSU))
+
+        num_shapes, _ = cv.connectedComponents(image=threshholded_img)
+        
+        # if 3 => division, 2 => equal, 1 => other
         if (num_shapes - 1) == 3:
             sign = "/"
         elif (num_shapes - 1) == 2:
