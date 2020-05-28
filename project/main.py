@@ -263,9 +263,9 @@ def main(input_filename, output_filename):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Process the video file.")
-    parser.add_argument("input", nargs=1, default="../data/robot_parcours_1.avi", type=str,
+    parser.add_argument("-i", "--input", nargs=1, default="../data/robot_parcours_1.avi", type=str,
                         help="Input file path.", metavar="<input file filename>")
-    parser.add_argument("-o", "--output", nargs=1, default="output.avi", type=str,
+    parser.add_argument("-o", "--output", nargs=1, default="../data/output.avi", type=str,
                         help="Output file path.", metavar="<output file filename>")
     args = parser.parse_args()
 
