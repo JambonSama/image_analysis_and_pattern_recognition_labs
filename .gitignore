@@ -12,10 +12,11 @@
 *.blg
 *.out
 *.zip
-
+*.avi
 
 # Specific paths
 
 **/.ipynb_checkpoints
 labs/**.png
 faq/**
+data/mnist/**
