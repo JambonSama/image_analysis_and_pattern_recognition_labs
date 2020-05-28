@@ -99,24 +99,28 @@ def detect_chars_pos_and_img(frame, robot_pos):
     chars_img = []
 
     for contour in contours:
+        # Find bounding box for each contour
         x, y, w, h = cv.boundingRect(contour)
-        r = range(10, 60)
-        R = range(10, 60)
+        # Verify with the box is big enough and not close to the robot
+        r = range(2, 60)
+        R = range(15, 60)
         robot_pos_threshold = 50
-        if int(w) in r and int(h) in R and norm((x+w/2-robot_pos[0], y+h/2-robot_pos[1])) > robot_pos_threshold:
-            pos_x = int(x+w/2)
-            pos_y = int(y+h/2)
+        if np.min([w, h]) in r and np.max([w, h]) in R and norm((x+w/2-robot_pos[0], y+h/2-robot_pos[1])) > robot_pos_threshold:
+            # Extract image
             extracted_img = frame[y:y+h, x:x+w]
+            # Compute angle of rotation
             mu = inertia_tensor(extracted_img)
             alpha = np.degrees(1/2 *np.arctan2(2*mu[0][1],(mu[1][1]-mu[0][0])))
+            # Rotate image to align vertically
             rotation_matrix = cv.getRotationMatrix2D((int(w/2), int(h/2)), alpha, 1)
             rotated_img = cv.warpAffine(
                 extracted_img, rotation_matrix, (extracted_img.shape[1],extracted_img.shape[0]))
+            # Normalize image for the CNN
             normalized_img = normalize_img(rotated_img)
-            chars_pos.append((pos_x, pos_y))
+            # Add position of char to the list
+            chars_pos.append((x+w/2, y+h/2))
+            # Add char image to the list
             chars_img.append(normalized_img)
-        
-
     return chars_pos, chars_img
 
 
