@@ -5,9 +5,12 @@ import os
 import torch
 import argparse
 import numpy as np
+from skimage.measure import inertia_tensor
+from skimage.measure import moments
 from numpy.linalg import norm
 import cv2 as cv
 import optical_character_recognizer as ocr
+import matplotlib.pyplot as plt
 
 def split(frame, b1, b2):
     """
@@ -85,9 +88,9 @@ def detect_chars_pos_and_img(frame, robot_pos):
     Frame is single channel image of the blue and black values (characters on the area).
     """
     # Morphology to make the equal and divide one shape
-    kernel = np.zeros((3, 3), np.uint8)
-    cv.circle(img=kernel, center=(1, 1), radius=1, color=255, thickness=-1)
-    dilated_img = cv.morphologyEx(frame, cv.MORPH_DILATE, kernel, iterations=4)
+    kernel = np.zeros((9, 9), np.uint8)
+    cv.circle(img=kernel, center=(4, 4), radius=4, color=255, thickness=-1)
+    dilated_img = cv.morphologyEx(frame, cv.MORPH_CLOSE, kernel, iterations=1)
 
     # Find the contours of images
     contours, _ = cv.findContours(
@@ -96,31 +99,23 @@ def detect_chars_pos_and_img(frame, robot_pos):
     chars_img = []
 
     for contour in contours:
-        if contour.shape[0] > 5:
-            # Find fit ellipse for each contour
-            (x, y), (ma, MA), angle = cv.fitEllipse(contour)
-
-            # Verifie if the fit ellipse is big enough and not the robot
-            r = range(5, 60)
-            R = range(15, 60)
-            robot_pos_threshold = 50
-            if int(ma) in r and int(MA) in R and norm((x-robot_pos[0], y-robot_pos[1])) > robot_pos_threshold:
-
-                # Rotate the image to allign the big axis verticaly
-                rotation_matrix = cv.getRotationMatrix2D((x, y), angle, 1)
-                rotated_img = cv.warpAffine(
-                    frame, rotation_matrix, (frame.shape[1], frame.shape[0]))
-
-                # Etract the char image for the rotated image
-                extracted_img = rotated_img[int(
-                    y-MA/2):int(y+MA/2), int(x-ma/2)-4:int(x+ma/2)]
-
-                # Normalize image like MNIST
-                normalized_img = normalize_img(extracted_img)
-
-                # Save the image and his position
-                chars_img.append(normalized_img)
-                chars_pos.append((x, y))
+        x, y, w, h = cv.boundingRect(contour)
+        r = range(10, 60)
+        R = range(10, 60)
+        robot_pos_threshold = 50
+        if int(w) in r and int(h) in R and norm((x+w/2-robot_pos[0], y+h/2-robot_pos[1])) > robot_pos_threshold:
+            pos_x = int(x+w/2)
+            pos_y = int(y+h/2)
+            extracted_img = frame[y:y+h, x:x+w]
+            mu = inertia_tensor(extracted_img)
+            alpha = np.degrees(1/2 *np.arctan2(2*mu[0][1],(mu[1][1]-mu[0][0])))
+            rotation_matrix = cv.getRotationMatrix2D((int(w/2), int(h/2)), alpha, 1)
+            rotated_img = cv.warpAffine(
+                extracted_img, rotation_matrix, (extracted_img.shape[1],extracted_img.shape[0]))
+            normalized_img = normalize_img(rotated_img)
+            chars_pos.append((pos_x, pos_y))
+            chars_img.append(normalized_img)
+        
 
     return chars_pos, chars_img
 
