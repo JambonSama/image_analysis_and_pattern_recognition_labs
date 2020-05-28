@@ -1,9 +1,13 @@
 # -*- coding: utf-8 -*-
 
+"""
+This file implements the OCR that classifies the characters.
+"""
+
 ######################################################################
 
-import torch
 import math
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
@@ -18,7 +22,7 @@ from torch import Tensor
 
 class DigitNet(nn.Module):
     """
-    DigitNet class : This class is a network that takes a single 
+    DigitNet class : This class is a network that takes a single
     channel 28x28 grayscale image of a digit and returns the digit class.
     """
 
@@ -98,7 +102,7 @@ class DigitNet(nn.Module):
 
     def determine_epoch_num(self, train_loader, valid_loader, max_epoch_num=200):
         """
-        Estimates the optimal number of training epochs for the 
+        Estimates the optimal number of training epochs for the
         network in order to avoid both over and under fitting.
         Parameters :
             train_loader -- DataLoader used to train the network
@@ -122,12 +126,12 @@ class DigitNet(nn.Module):
 
     def _fd(self, img, N=None, method="cropped"):
         """
-        _fd computes the  Fourier Descriptors 
+        Computes the  Fourier Descriptors .
         Parameters:
             img: the image to compute the afd on
             N: the number of fourrier descriptors to keep
             method: cropped or padded
-        Returns: 
+        Returns:
             Z: array of fourrier descriptors
         """
         # Converting from RGB to grayscale if necessary
@@ -165,7 +169,7 @@ class DigitNet(nn.Module):
         if Nin < N:
             dst = img.copy()
             cv.resize(img, dst, fx=2, fy=2, interpolation=cv.INTER_LINEAR)
-            Z, Nin, _, _, _, _ = _fd(dst, N, method)
+            Z, Nin, _, _, _, _ = self._fd(dst, N, method)
         elif Nin > N:
             i = math.ceil(N/2)
 
@@ -183,13 +187,13 @@ class DigitNet(nn.Module):
 
     def _afd(self, img, N=None, method="cropped"):
         """
-        _afd computes the adjusted Fourier Descriptors 
+        Computes the adjusted Fourier Descriptors.
         (invariant by translation, rotation, and scaling).
         Parameters:
             img: the image to compute the afd on
             N: the number of fourrier descriptors to keep
             method: cropped or padded
-        Returns: 
+        Returns:
             m: array of fourrier descriptors (without the 0 and 1 fd)
         """
 
@@ -199,9 +203,9 @@ class DigitNet(nn.Module):
         m = np.absolute(Z)
         return m
 
-    def _getRatio(self, img):
+    def _get_ratio(self, img):
         """
-        Returns the height width ratio of the minimal surrounding rectangle arround 
+        Returns the height width ratio of the minimal surrounding rectangle around
         the object in the image.
         Parameters:
             image: the image to get the ratio from
@@ -233,12 +237,13 @@ class DigitNet(nn.Module):
         Returns the predicted number from the CNN.
         Parameters:
             image: 28 by 28 binary (1 and 0) matrix
-        Returns: 
+        Returns:
             digit: char of the detected value
         """
-        t = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))])
+        trans = transforms.Compose(
+            [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))])
         img = Image.fromarray(image)
-        img = Tensor(t(img))
+        img = Tensor(trans(img))
         img = torch.unsqueeze(img, 0)
         output = self(img)
         _, predicted = torch.max(output.data, 1)
@@ -246,10 +251,10 @@ class DigitNet(nn.Module):
 
     def get_sign(self, image):
         """
-        Returns the predicted sign from the mlp
+        Returns the predicted sign.
         Parameters:
             image: 28 by 28 binary (1 and 0) matrix
-        Returns: 
+        Returns:
             sign: char of the detected sign
         """
         sign = ""
@@ -259,7 +264,7 @@ class DigitNet(nn.Module):
             src=image, thresh=0, maxval=255, type=(cv.THRESH_BINARY | cv.THRESH_OTSU))
 
         num_shapes, _ = cv.connectedComponents(image=threshholded_img)
-        
+
         # if 3 => division, 2 => equal, 1 => other
         if (num_shapes - 1) == 3:
             sign = "/"
@@ -269,7 +274,7 @@ class DigitNet(nn.Module):
             # search the fourrier descriptor, the second one is used
             m = self._afd(image, N=5, method="cropped")
             # Calculate the ratio to detect the "-""
-            ratio = self._getRatio(image)
+            ratio = self._get_ratio(image)
             if ratio > 2:
                 sign = "-"
             elif m[1] < 0.1:

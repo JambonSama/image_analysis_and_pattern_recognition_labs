@@ -1,16 +1,23 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import os
-import torch
+"""
+This is the main application that tracks a formula traced by a robot
+on a table with chars written on it.
+"""
+
+######################################################################
+
 import argparse
+import torch
 import numpy as np
 from skimage.measure import inertia_tensor
-from skimage.measure import moments
 from numpy.linalg import norm
 import cv2 as cv
 import optical_character_recognizer as ocr
-import matplotlib.pyplot as plt
+
+######################################################################
+
 
 def split(frame, b1, b2):
     """
@@ -42,8 +49,8 @@ def detect_arrow_position(frame):
     label_number, _, stats, centroids = cv.connectedComponentsWithStats(
         image=frame, connectivity=8)
 
+    # index of arrow within all the connected components
     i = 1
-
     if label_number < 2:
         return (-1, -1), frame
     if label_number > 2:
@@ -66,12 +73,17 @@ def determine_chars(chars_img, cnn):
 
     return chars
 
+
 def normalize_img(img):
+    """
+    Applies the MNIST normalization.
+    """
     rect = cv.boundingRect(img)
     length = np.max(rect[2:])
     ratio = 20/length
     img = img[rect[1]:rect[1]+rect[3], rect[0]:rect[0]+rect[2]]
-    img = cv.resize(src=img, dsize=(0, 0), fx=ratio, fy=ratio, interpolation=cv.INTER_LINEAR)
+    img = cv.resize(src=img, dsize=(0, 0), fx=ratio,
+                    fy=ratio, interpolation=cv.INTER_LINEAR)
     height, width = img.shape[:2]
     moments = cv.moments(img)
     cX = int(moments["m10"] / moments["m00"])
@@ -81,6 +93,7 @@ def normalize_img(img):
     final_img = np.zeros((28, 28), np.uint8)
     final_img[oY:oY+height, oX:oX+width] = img
     return final_img
+
 
 def detect_chars_pos_and_img(frame, robot_pos):
     """
@@ -105,16 +118,19 @@ def detect_chars_pos_and_img(frame, robot_pos):
         r = range(2, 60)
         R = range(15, 60)
         robot_pos_threshold = 50
-        if np.min([w, h]) in r and np.max([w, h]) in R and norm((x+w/2-robot_pos[0], y+h/2-robot_pos[1])) > robot_pos_threshold:
+        robot_dist = norm((x+w/2-robot_pos[0], y+h/2-robot_pos[1]))
+        if np.min([w, h]) in r and np.max([w, h]) in R and robot_dist > robot_pos_threshold:
             # Extract image
             extracted_img = frame[y:y+h, x:x+w]
             # Compute angle of rotation
             mu = inertia_tensor(extracted_img)
-            alpha = np.degrees(1/2 *np.arctan2(2*mu[0][1],(mu[1][1]-mu[0][0])))
+            alpha = np.degrees(
+                1/2 * np.arctan2(2*mu[0][1], (mu[1][1]-mu[0][0])))
             # Rotate image to align vertically
-            rotation_matrix = cv.getRotationMatrix2D((int(w/2), int(h/2)), alpha, 1)
+            rotation_matrix = cv.getRotationMatrix2D(
+                (int(w/2), int(h/2)), alpha, 1)
             rotated_img = cv.warpAffine(
-                extracted_img, rotation_matrix, (extracted_img.shape[1],extracted_img.shape[0]))
+                extracted_img, rotation_matrix, (extracted_img.shape[1], extracted_img.shape[0]))
             # Normalize image for the CNN
             normalized_img = normalize_img(rotated_img)
             # Add position of char to the list
@@ -133,6 +149,7 @@ def detect_chars(frame, robot_pos, cnn):
     chars = determine_chars(chars_img, cnn)
     return chars_pos, chars
 
+
 def main(input_filename, output_filename):
     """
     Main function of program.
@@ -141,7 +158,6 @@ def main(input_filename, output_filename):
 
     cnn = ocr.DigitNet()
     cnn.load_state_dict(torch.load("./mnist_net.cnn"))
-
 
     # HSV boundaries for color detection
     r1 = [[10, 10], [170, 80], [170, 80]]  # first red (around 0+ hue)
@@ -241,6 +257,8 @@ def main(input_filename, output_filename):
     # Closes all the frames
     cv.destroyAllWindows()
     return
+
+######################################################################
 
 
 if __name__ == "__main__":
