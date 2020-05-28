@@ -17,9 +17,12 @@ def detect_chars_pos_and_img2(frame, robot_pos, base_image):
     Frame is single channel image of the blue and black values (characters on the area).
     """
     # Morphology to make the equal and divide one shape
-    kernel = np.zeros((3, 3), np.uint8)
-    cv.circle(img=kernel, center=(1, 1), radius=1, color=255, thickness=-1)
-    dilated_img = cv.morphologyEx(frame, cv.MORPH_DILATE, kernel, iterations=4)
+    #kernel = np.zeros((3, 3), np.uint8)
+    #cv.circle(img=kernel, center=(1, 1), radius=1, color=255, thickness=-1)
+    kernel = np.zeros((9, 9), np.uint8)
+    cv.circle(img=kernel, center=(4, 4), radius=4, color=255, thickness=-1)
+    dilated_img = cv.morphologyEx(frame, cv.MORPH_DILATE, kernel, iterations=1)
+    cv.imshow("dilated img", dilated_img)
 
     # Find the contours of images
     contours, _ = cv.findContours(
@@ -34,9 +37,9 @@ def detect_chars_pos_and_img2(frame, robot_pos, base_image):
             (x, y), (ma, MA), angle = ellipse
 
             # Verifie if the fit ellipse is big enough and not the robot
-            r = range(5, 60)
+            r = range(3, 60)
             R = range(15, 60)
-            robot_pos_threshold = 50
+            robot_pos_threshold = 100
             if int(ma) in r and int(MA) in R and norm((x-robot_pos[0], y-robot_pos[1])) > robot_pos_threshold:
 
                 # Rotate the image to allign the big axis verticaly
@@ -46,15 +49,18 @@ def detect_chars_pos_and_img2(frame, robot_pos, base_image):
 
                 # Etract the char image for the rotated image
                 extracted_img = rotated_img[int(
-                    y-MA/2):int(y+MA/2), int(x-ma/2):int(x+ma/2)]
+                    y-MA/2)-4:int(y+MA/2)+4, int(x-ma/2)-4:int(x+ma/2)+4]
                 
+                pre_resize = 28
+                add_pixel = int((28-pre_resize)/2)
+
                 # Resize the char image to have 28x28 pixel to by compatible with mlp
-                rapport = int(np.round(20/extracted_img.shape[0]*extracted_img.shape[1]))
+                rapport = int(np.round(pre_resize/extracted_img.shape[0]*extracted_img.shape[1]))
                 print(extracted_img.shape)
-                resize_img = cv.resize(extracted_img, (rapport, 20), interpolation=cv.INTER_LINEAR)
+                resize_img = cv.resize(extracted_img, (rapport, pre_resize), interpolation=cv.INTER_LINEAR)
                 left = int((28-resize_img.shape[1])/2)
                 right = 28 - resize_img.shape[1] - left
-                resize_img = cv.copyMakeBorder(resize_img, 4, 4, left, right, cv.BORDER_CONSTANT)
+                resize_img = cv.copyMakeBorder(resize_img, add_pixel, add_pixel, left, right, cv.BORDER_CONSTANT)
 
                 # Threshold and morphology to fil holes and binarize with 0 or 255
                 _, thresholded_img = cv.threshold(
@@ -79,9 +85,9 @@ def detect_chars_pos_and_img3(frame, robot_pos, base_image):
     Frame is single channel image of the blue and black values (characters on the area).
     """
     # Morphology to make the equal and divide one shape
-    kernel = np.zeros((3, 3), np.uint8)
-    cv.circle(img=kernel, center=(1, 1), radius=1, color=255, thickness=-1)
-    dilated_img = cv.morphologyEx(frame, cv.MORPH_DILATE, kernel, iterations=4)
+    kernel = np.zeros((9, 9), np.uint8)
+    cv.circle(img=kernel, center=(4, 4), radius=4, color=255, thickness=-1)
+    dilated_img = cv.morphologyEx(frame, cv.MORPH_CLOSE, kernel, iterations=1)
 
     # Find the contours of images
     contours, _ = cv.findContours(
@@ -147,6 +153,7 @@ def main():
     b1 = [[118, 20], [150, 60], [110, 60]]  # blue
     b2 = [[90, 90], [130, 130], [60, 60]]  # black
 
+
     # Check if camera opened successfully
     if not cap.isOpened():
         print("Error opening video stream or file")
@@ -159,7 +166,7 @@ def main():
         chars_img = split(hsv_frame, b1, b2)
         cv.imshow("black image", chars_img)
         
-        positions, images = detect_chars_pos_and_img2(chars_img, (539, 354), frame)
+        positions, images = detect_chars_pos_and_img3(chars_img, (539, 354), frame)
         chars = determine_chars(images)
    
         fig, axes = plt.subplots(1, len(images), figsize=(20, 1))
