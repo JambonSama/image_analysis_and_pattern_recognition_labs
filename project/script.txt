@@ -2,35 +2,35 @@ Slide 1:
 P)	Hi, my name is Philip Schuller, and with Nicolas Furrer and Claire Meyer, we are gonna present our project for the img analysis and pattern recognition course.
 
 Slide 2:
-C)	First, we'll talk about our strategy for img segmentation. We read the frames in colour space and convert them to HSV space. That allows for robust color-based segmentation, which is useful, because the arrow is red, and the characters of interest are blue and / or black. Once the red-based segmentation is done, the robot tracking is done by applying some basic morphology to the frame, and using region growing. The returned value is the x y robot position.
+C)	First, we'll talk about our strategy for img segmentation. We read the frames in RGB space and converted them to HSV space. That allows for robust color-based segmentation, which is useful, because the arrow of the robot is red, and the characters of interest are blue and / or black. Once the red-based segmentation is done, the robot tracking is done by applying some basic morphology to the frame, and using region growing. The returned value is the x y robot position.
 
 N)	Once we have the robot position, we can extract all the characters. 
 First, we applied morphology on the blue and black image to make the equal and divide as one object.
-Then, the countours of all the objects are extracted, and from them, the bounding boxes.
+Then, the contours of all the objects are extracted, and from them, the bounding boxes.
 The bounding boxes sizes are used to discriminate between actual characters and artefacts. 
 Then, for each remaining region of interest, the inertia axes are used to redress the characters.
 Then, the characters images are normalized like MNIST and sent to the OCR for classification.
 The returned values are a list of the characters x y position, and a list of the characters classification. 
 There are two classifications, one from a CNN that returns digits between 0 and 8, and one that returns mathematical operators.
 
-C)	Thus, all the characters are located and classified at the first frame. Then, for each frame, if the distance between the robot and one of the characters is small enough, the formula is updated with that character. If the character is the equal sign, the result of the formula is computed. Then, at each frame, the required information (and more) is displayed : the state of the formula, as well as the robot trajectory. We also display all the characters localization.
+C)	Thus, all the characters are located and classified on the first frame. Then, for each frame, if the distance between the robot and one of the characters is small enough, the formula is updated with that character. If the character is the equal sign, the result of the formula is computed. After that, the required information is displayed : the state of the formula, as well as the robot trajectory. We also display all the characters localization.
 
 Slide 3:
-C)	We can see that the result of the red-based segmentation is very good, the arrow is well detected, which allow in the video to robustly know the robot position.
+C)	We can see that the result of the red-based segmentation is very good, the arrow is well detected, which allows in the video to robustly know the robot position.
 
 N)	As there are not only the characters in black, we have to discriminate which object we keep.
 In green are the objects kept as characters, and in blue, the objects discarded. 
 Some, like those, are discriminated based on the size; and other, like those, are discarded based on their proximity with the robot, since we sometimes detect some parts of the wheels.
-Here is the exctracted images and their classification, on the left from the CNN, and on the right, from the custom classifier.
+Here is the extracted images and their classification, on the left from the CNN, and on the right, from the custom classifier.
 
 Slide 3:
-C)	Now let's talk about the strategy for our OCR. For the digits, we use a CNN based on LeNet-5 by Yann LeGuin, so two convolutions with max pooling, followed by 3 fully connected layers. The differences from LeNet-5 are just the dimensions, because our input is 28 by 28. We chose 28x28 to easily train on MNIST. MNIST was normalized with the mean and standard deviation, and the training done on the images tilted at 0° and 180°, since the redressing cannot discriminate between the two.
+C)	Now let's talk about the strategy for our OCR. For the digits, we used a CNN based on LeNet-5 by Yann LeGuin, so two convolutions with max pooling, followed by 3 fully connected layers. The differences from LeNet-5 are just the dimensions, because our input is 28 by 28. We chose 28x28 to easily train on MNIST. MNIST was normalized with the mean and standard deviation over the set, and the training done on the images tilted at 0 and 180°, since the redressing we do when detecting the characters cannot discriminate between the two.
 
 P)	The custom classifier classifies the math operators. First, the number of contours is computed. If it's 3, it's the division operator. If it's 2, it's the equal sign. Else, the width over height ratio is computed. Based on the result, it's either the subtraction operator or something else. In the latter case, the Fourier descriptors of the shape are computed, and the discrimination between the multiplication and the addition operators is done on the 4th modulus of the signal (because it works).
 
 Slide 4:
-C)	When testing the CNN on the MNIST testing set at 0 and 180 degrees, the accuracy is greater than 98%. The accuracy is 100% on the 6 digits from the provided video, but that has no statistical signification on the relevance of the CNN's classification, because 6 is way to low. The sets designing, the neural network training and testing is done in the script main_ocr.py; but obviously for the application here, we load the CNN already trained. 
+C)	When testing the CNN on the MNIST testing set at 0 and 180 degrees, the accuracy is greater than 98%. The accuracy is 100% on the 6 digits from the provided video, but that has little statistical signification on CNN's capacity to generalize to other videos, because 6 is way too low. The sets designing, the neural network training and testing is done in the script main_ocr.py, which then saves a trained model; and obviously for the application here, we load the CNN already trained. 
 
-P)	The custom classifier has 100% accuracy on the 4 digits from the provided video, but again, it has no satistical value for the performance of the classifier. We didn't have much of anything else for testing, though, so it had to do. 
+P)	The custom classifier has 100% accuracy on the 4 digits from the provided video, but again, it has little satistical value for the generalization of the classifier, for the same reasons. We didn't have much of anything else for testing, though, so it had to do. 
 To know whether to take the classification from the CNN or the custom classifier, we used the knowledge that digits and math operators alternate in the formula, and that we begin with a digit.
 We will now be happy to answer any of your questions and test the program on your video.
