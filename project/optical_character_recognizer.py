@@ -20,7 +20,7 @@ from torch import Tensor
 ######################################################################
 
 
-class DigitNet(nn.Module):
+class OCR(nn.Module):
     """
     DigitNet class : This class is a network that takes a single
     channel 28x28 grayscale image of a digit and returns the digit class.

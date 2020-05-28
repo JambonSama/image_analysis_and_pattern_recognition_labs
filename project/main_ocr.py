@@ -72,7 +72,7 @@ print("Data loaders done.")
 
 ######################################################################
 
-net = ocr.DigitNet()
+net = ocr.OCR()
 epoch_num = net.determine_epoch_num(epoch_loader, valid_loader)
 
 print(f"Optimal number of epochs : {epoch_num}")

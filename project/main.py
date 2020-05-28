@@ -130,7 +130,7 @@ def detect_chars_pos_and_img(frame, robot_pos):
             rotation_matrix = cv.getRotationMatrix2D(
                 (int(w/2), int(h/2)), alpha, 1)
             rotated_img = cv.warpAffine(
-                extracted_img, rotation_matrix, (np.max([extracted_img.shape[1],extracted_img.shape[0]]), np.max([extracted_img.shape[1],extracted_img.shape[0]])))
+                extracted_img, rotation_matrix, (np.max([extracted_img.shape[1], extracted_img.shape[0]]), np.max([extracted_img.shape[1], extracted_img.shape[0]])))
             # Normalize image for the CNN
             normalized_img = normalize_img(rotated_img)
             # Add position of char to the list
@@ -156,7 +156,7 @@ def main(input_filename, output_filename):
     """
     capture_video = cv.VideoCapture(input_filename)
 
-    cnn = ocr.DigitNet()
+    cnn = ocr.OCR()
     cnn.load_state_dict(torch.load("./mnist_net.cnn"))
 
     # HSV boundaries for color detection
