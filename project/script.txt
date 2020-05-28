@@ -4,14 +4,24 @@ P)	Hi, my name is Philip Schuller, and with Nicolas Furrer and Claire Meyer, we 
 Slide 2:
 C)	First, we'll talk about our strategy for img segmentation. We read the frames in colour space and convert them to HSV space. That allows for robust color-based segmentation, which is useful, because the arrow is red, and the characters of interest are blue and / or black. Once the red-based segmentation is done, the robot tracking is done by applying some basic morphology to the frame, and using region growing. The returned value is the x y robot position.
 
-N)	Once we have the robot position, we can extract all the characters. The blue/black based segmentation is a little messier than the red one. First, morphology is applied to ensure the fusing of the different parts of unique characters (the criteria for this operation is the size). Then, the countours of all the objects are extracted, and from them, the bounding boxes. The bounding boxes are used to discriminate between actual characters and artefacts. Then, for each remaining region of interest, the inertia axes are used to redress the characters, modulo 180 degrees. Then, the characters images are normalized like MNIST, we'll talk more about MNIST in a minute, and sent to the OCR for classification. The returned values are a list of the characters x y position, and a list of the characters classification. There are two classifications, one from a CNN that returns digits between 0 and 8, and one that returns mathematical operators.
+N)	Once we have the robot position, we can extract all the characters. 
+First, we applied morphology on the blue and black image to make the equal and divide as one object.
+Then, the countours of all the objects are extracted, and from them, the bounding boxes.
+The bounding boxes sizes are used to discriminate between actual characters and artefacts. 
+Then, for each remaining region of interest, the inertia axes are used to redress the characters.
+Then, the characters images are normalized like MNIST and sent to the OCR for classification.
+The returned values are a list of the characters x y position, and a list of the characters classification. 
+There are two classifications, one from a CNN that returns digits between 0 and 8, and one that returns mathematical operators.
 
 C)	Thus, all the characters are located and classified at the first frame. Then, for each frame, if the distance between the robot and one of the characters is small enough, the formula is updated with that character. If the character is the equal sign, the result of the formula is computed. Then, at each frame, the required information (and more) is displayed : the state of the formula, as well as the robot trajectory. We also display all the characters localization.
 
 Slide 3:
 C)	We can see that the result of the red-based segmentation is very good, the arrow is well detected, which allow in the video to robustly know the robot position.
 
-N)	The blue / black based segmentation gives a somewhat noisier result, so that we have to discriminate a little more. In green are the objects kept as characters, and in blue, the objects discarded. Some, like those, are discriminated based on the size; and other, like those, are discarded based on their proximity with the robot, since we sometimes detect some parts of the wheels. Here is the classification of all the characters, on the left from the CNN, and on the right, from the custom classifier. We can also observe the redressing of the characters.
+N)	As there are not only the characters in black, we have to discriminate which object we keep.
+In green are the objects kept as characters, and in blue, the objects discarded. 
+Some, like those, are discriminated based on the size; and other, like those, are discarded based on their proximity with the robot, since we sometimes detect some parts of the wheels.
+Here is the exctracted images and their classification, on the left from the CNN, and on the right, from the custom classifier.
 
 Slide 3:
 C)	Now let's talk about the strategy for our OCR. For the digits, we use a CNN based on LeNet-5 by Yann LeGuin, so two convolutions with max pooling, followed by 3 fully connected layers. The differences from LeNet-5 are just the dimensions, because our input is 28 by 28. We chose 28x28 to easily train on MNIST. MNIST was normalized with the mean and standard deviation, and the training done on the images tilted at 0° and 180°, since the redressing cannot discriminate between the two.
