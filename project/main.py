@@ -1,288 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import gzip
 import os
-import pickle
+import torch
 import argparse
 import numpy as np
 from numpy.linalg import norm
 import cv2 as cv
-import math
-from sklearn.neural_network import MLPClassifier
-
-class OCR:
-    """
-    Converts an image into a number or a sign
-    Doesn't detect if it is a sign or a number.
-
-    """
-
-    def __init__(self):
-        self.model = []
-        self.image_shape = (28, 28)
-
-        self.data_base_path = os.path.join(os.pardir, 'data')
-        self.data_folder = 'lab-03-data'
-
-        self._prepare_number_training_and_testing()
-        self._train_classifiers()
-
-    def _remove_nine(self, dataset, labels):
-        """
-        Remove the nine "9" character from the given dataset
-        As the nine is not used for this lab, we remove it to avoid false 
-        detection.
-
-        """
-        idx_list = []
-        for idx, l in enumerate(labels):
-            if l == 9:
-                idx_list.append(idx)
-        return np.delete(dataset, idx_list, axis=0), np.delete(labels, idx_list)
-
-    def _extract_data(self, filename, image_shape, image_number):
-        """
-        Unzip the MNIST dataset and stores the data in memory.
-        """
-        with gzip.open(filename) as bytestream:
-            bytestream.read(16)
-            buf = bytestream.read(np.prod(image_shape)*image_number)
-            data = np.frombuffer(buf, dtype=np.uint8).astype(np.float32)
-            data = data.reshape(image_number, image_shape[0],
-                                image_shape[1])
-        return data
-
-    def _extract_labels(self, filename, image_number):
-        """
-        Unzip the MNIST dataset and stores the labels in memory.
-        """
-        with gzip.open(filename) as bytestream:
-            bytestream.read(8)
-            buf = bytestream.read(1*image_number)
-            labels = np.frombuffer(buf, dtype=np.uint8).astype(np.int64)
-        return labels
-
-    def _flatten_image(self, image):
-        """
-        Returns the image as 1 by 784 vector instead of 28*28.
-        """
-        flattened_image = image.reshape(1,
-                                        self.image_shape[0]*self.image_shape[1])
-        return flattened_image
-
-    def _prepare_number_training_and_testing(self):
-        """
-        Extracts the datasets for use in the mlp
-        stores the dataset without the character "9".
-        """
-        train_set_size = 60000
-        test_set_size = 10000
-
-        data_part2_folder = os.path.join(self.data_base_path,
-                                         self.data_folder, 'part2')
-        train_images_path = os.path.join(data_part2_folder,
-                                         'train-images-idx3-ubyte.gz')
-        train_labels_path = os.path.join(data_part2_folder,
-                                         'train-labels-idx1-ubyte.gz')
-        test_images_path = os.path.join(data_part2_folder,
-                                        't10k-images-idx3-ubyte.gz')
-        test_labels_path = os.path.join(data_part2_folder,
-                                        't10k-labels-idx1-ubyte.gz')
-
-        train_images = self._extract_data(train_images_path, self.image_shape,
-                                          train_set_size)
-        test_images = self._extract_data(test_images_path, self.image_shape,
-                                         test_set_size)
-        self.train_labels = self._extract_labels(train_labels_path,
-                                                 train_set_size)
-        self.test_labels = self._extract_labels(test_labels_path,
-                                                test_set_size)
-        self.flattened_training_set = train_images.reshape(
-            train_set_size, self.image_shape[0]*self.image_shape[1])
-        self.flattened_testing_set = test_images.reshape(test_set_size,
-                                                         self.image_shape[0]*self.image_shape[1])
-
-        self.flattened_training_set, self.train_labels = self._remove_nine(
-            self.flattened_training_set, self.train_labels)
-        self.flattened_testing_set, self.test_labels = self._remove_nine(
-            self.flattened_testing_set, self.test_labels)
-
-    def _train_classifiers(self):
-        """
-        Trains the MLP with the stored training data.
-        """
-        # Definition of the used models
-        if os.path.isfile('model.mlp'):
-            print("Already trained model found")
-            self.model = pickle.load(open('model.mlp', 'rb'))
-        else:
-            print("No previous model found.\nTraining new model and",
-                  " saving it to ./model.mlp")
-
-            self._prepare_number_training_and_testing()
-            self.model = MLPClassifier(hidden_layer_sizes=(200, ),
-                                       activation='relu', solver='adam', alpha=1e-3,
-                                       batch_size='auto', learning_rate='constant',
-                                       max_iter=200, shuffle=True, random_state=1, tol=0.0001,
-                                       verbose=False, warm_start=False, early_stopping=True,
-                                       validation_fraction=0.1, beta_1=0.9, beta_2=0.99999,
-                                       epsilon=1e-08, n_iter_no_change=10)
-
-            self.model.fit(self.flattened_training_set, self.train_labels)
-
-            pickle.dump(self.model, open('model.mlp', 'wb'))
-
-    def _fd(self, img, N=None, method="cropped"):
-        # Converting from RGB to grayscale if necessary
-        if len(img.shape) == 3:
-            img = cv.cvtColor(src=img, code=cv.COLOR_RGB2GRAY)
-
-        # Converting to binary image
-        _, img = cv.threshold(src=img, thresh=0, maxval=1,
-                              type=(cv.THRESH_BINARY | cv.THRESH_OTSU))
-        [numrows, numcols] = img.shape
-
-        # Extracting the contours
-        contours, _ = cv.findContours(
-            image=img, mode=cv.RETR_EXTERNAL, method=cv.CHAIN_APPROX_NONE)
-        contours = np.asarray(contours).squeeze()
-
-        if len(contours.shape) == 1:
-            i = np.argmax([len(c) for c in contours])
-            contours = (contours[i][:, :]).squeeze()
-
-        # Complex periodic signal out of the contours
-        y = contours[:, 0]
-        x = contours[:, 1]
-        z = x + y*1j
-        Nin = z.size
-
-        # Assigning default arg
-        if N is None:
-            N = Nin
-
-        # Processing to get the fft
-        Z = np.fft.fft(z)
-
-        # Magic to get the correct signal length
-        if Nin < N:
-            dst = img.copy()
-            cv.resize(img, dst, fx=2, fy=2, interpolation=cv.INTER_LINEAR)
-            Z, Nin, _, _, _, _ = _fd(dst, N, method)
-        elif Nin > N:
-            i = math.ceil(N/2)
-
-            if method == "cropped":
-                Z = np.concatenate((Z[:i], Z[-i:]))
-            elif method == "padded":
-                Z[i:-i] = 0
-            else:
-                raise ValueError(f"Incorrect 'method' : {method}.")
-
-        m = np.absolute(Z)
-        phi = np.angle(Z)
-
-        return Z, Nin, m, phi, numrows, numcols
-
-    def _afd(self, img, N=None, method="cropped"):
-        # AFD computes the adjusted Fourier Descriptors (invariant by translation, rotation, and scaling).
-        #   m = afd(img)
-        Z, _, _, _, _, _ = self._fd(img, N, method)
-        Z = Z/Z[1]
-        Z = Z[2:-1]
-        m = np.absolute(Z)
-        return m
-
-    def compute_test_score(self):
-        """
-        Compute the score of the trained mlp against the test dataset.
-        """
-        output = self.model.predict(self.flattened_testing_set)
-        nb_wrong = 0
-        idx_list = []
-        for idx, predicted in enumerate(output):
-            if predicted != self.test_labels[idx]:
-                nb_wrong = nb_wrong + 1
-                idx_list.append(idx)
-
-        return 1-(nb_wrong/10000)
-
-    def get_digit(self, image):
-        """
-        Returns the predicted number from the mlp.
-
-        image: 28 by 28 binary (1 and 0) matrix
-        return: char of the detected value
-        """
-        angle = 180
-        rotation_matrix = cv.getRotationMatrix2D(
-            (self.image_shape[0]/2, self.image_shape[1]/2), angle, 1)
-        rotated_im = cv.warpAffine(image, rotation_matrix,
-                                   (self.image_shape[1], self.image_shape[0]))
-
-        im_fl = self._flatten_image(image).astype('float32')
-        im_fl_reverse = self._flatten_image(rotated_im).astype('float32')
-
-        prediction_normal = self.model.predict(im_fl)
-        probability_normal = self.model.predict_proba(im_fl)
-
-        prediction_reverse = self.model.predict(im_fl_reverse)
-        probability_reverse = self.model.predict_proba(im_fl_reverse)
-
-        if probability_reverse[0, prediction_reverse] \
-                > probability_normal[0, prediction_normal]:
-            return prediction_reverse[0]
-        else:
-            return prediction_normal[0]
-
-    def _getRatio(self, img):
-        _, threshholded_img = cv.threshold(src=img, thresh=0, maxval=255, type=(cv.THRESH_BINARY | cv.THRESH_OTSU))
-        
-        superimposed_img = threshholded_img.copy()
-        superimposed_img = cv.cvtColor(src=superimposed_img, code=cv.COLOR_GRAY2RGB)
-        
-        contour, _ = cv.findContours(image=threshholded_img, mode=cv.RETR_EXTERNAL, method=cv.CHAIN_APPROX_SIMPLE)
-        
-        minRect = cv.minAreaRect(contour[0])
-        (x, y), (width, height), angle = minRect
-        
-        box = cv.boxPoints(minRect)
-        cv.drawContours(superimposed_img, [np.intp(box)], 0, [255,0,0])
-
-        if width >= height:
-            ratio = width/height
-        else:
-            ratio = height/width
-        
-        return ratio, superimposed_img
-
-    def get_sign(self, image):
-        """
-        Returns the predicted sign from the mlp
-
-        image: 28 by 28 binary (1 and 0) matrix
-        return: char of the detected sign
-        """
-
-        # Start by counting the number of contours
-        # if 3 => division, 2 => equal, 1 => other
-        num_shapes,_ = cv.connectedComponents(image=image)
-
-        if (num_shapes - 1) == 3:
-            return "/"
-        elif (num_shapes - 1) == 2:
-            return "="
-        else:
-            # search the fourrier descriptor, the second one is good
-            m = self._afd(image, N=5, method="cropped")
-            ratio, _ = self._getRatio(image)
-            if ratio > 2:
-                return "-"
-            if m[1] < 0.1:
-                return "*"
-            else:
-                return "+"
+import optical_character_recognizer as ocr
 
 def split(frame, b1, b2):
     """
@@ -324,23 +49,35 @@ def detect_arrow_position(frame):
     return (centroids[i][0], centroids[i][1])
 
 
-def determine_chars(chars_img):
+def determine_chars(chars_img, cnn):
     """
     From the list of the characters images, returns a list of the characters,
-    using the MLP for classification.
+    using the CNN for classification.
     """
-    ocr1 = OCR()
-    #print(ocr1.compute_test_score())
-
     chars = []
 
     for image in chars_img:
-        digit = str(ocr1.get_digit(image))
-        sign = ocr1.get_sign(image)
+        digit = str(cnn.get_digit(image))
+        sign = cnn.get_sign(image)
         chars.append([digit, sign])
 
     return chars
 
+def normalize_img(img):
+    rect = cv.boundingRect(img)
+    length = np.max(rect[2:])
+    ratio = 20/length
+    img = img[rect[1]:rect[1]+rect[3], rect[0]:rect[0]+rect[2]]
+    img = cv.resize(src=img, dsize=(0, 0), fx=ratio, fy=ratio, interpolation=cv.INTER_LINEAR)
+    height, width = img.shape[:2]
+    moments = cv.moments(img)
+    cX = int(moments["m10"] / moments["m00"])
+    cY = int(moments["m01"] / moments["m00"])
+    oX = 14-cX
+    oY = 14-cY
+    final_img = np.zeros((28, 28), np.uint8)
+    final_img[oY:oY+height, oX:oX+width] = img
+    return final_img
 
 def detect_chars_pos_and_img(frame, robot_pos):
     """
@@ -378,34 +115,23 @@ def detect_chars_pos_and_img(frame, robot_pos):
                 extracted_img = rotated_img[int(
                     y-MA/2):int(y+MA/2), int(x-ma/2)-4:int(x+ma/2)]
 
-                # Resize the char image to have 28x28 pixel to by compatible with mlp
-                rapport = int(np.round(20/extracted_img.shape[0]*extracted_img.shape[1]))
-                resized_img = cv.resize(extracted_img, (rapport, 20), interpolation=cv.INTER_LINEAR)
-                left = int((28-resized_img.shape[1])/2)
-                right = 28 - resized_img.shape[1] - left
-                resized_img = cv.copyMakeBorder(resized_img, 4, 4, left, right, cv.BORDER_CONSTANT)
-
-
-                # Threshold and morphology to fil holes and binarize with 0 or 255
-                _, thresholded_img = cv.threshold(
-                    resized_img, 150, 255, cv.THRESH_BINARY)
-                # thresholded_img = cv.morphologyEx(
-                #     thresholded_img, cv.MORPH_CLOSE, kernel, iterations=1)
+                # Normalize image like MNIST
+                normalized_img = normalize_img(extracted_img)
 
                 # Save the image and his position
-                chars_img.append(thresholded_img)
+                chars_img.append(normalized_img)
                 chars_pos.append((x, y))
 
     return chars_pos, chars_img
 
 
-def detect_chars(frame, robot_pos):
+def detect_chars(frame, robot_pos, cnn):
     """
     From a frame, returns a list of all the chars positions, and a list of all the chars.
     Frame is single channel image of the blue and black values (characters on the area).
     """
     chars_pos, chars_img = detect_chars_pos_and_img(frame, robot_pos)
-    chars = determine_chars(chars_img)
+    chars = determine_chars(chars_img, cnn)
     return chars_pos, chars
 
 def main(input_filename, output_filename):
@@ -413,6 +139,10 @@ def main(input_filename, output_filename):
     Main function of program.
     """
     capture_video = cv.VideoCapture(input_filename)
+
+    cnn = ocr.DigitNet()
+    cnn.load_state_dict(torch.load("./mnist_net.cnn"))
+
 
     # HSV boundaries for color detection
     r1 = [[10, 10], [170, 80], [170, 80]]  # first red (around 0+ hue)
@@ -452,7 +182,7 @@ def main(input_filename, output_filename):
 
             if i == 0:
                 chars_img = split(hsv_frame, b1, b2)
-                chars_pos, chars = detect_chars(chars_img, robot_pos[0])
+                chars_pos, chars = detect_chars(chars_img, robot_pos[0], cnn)
 
             # Retrieve the formula
             for i, pos in enumerate(chars_pos):
