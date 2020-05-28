@@ -1,7 +1,5 @@
-argparse
 numpy
-cv2
+opencv-python
 scikit-learn
-math
 torch
-PIL
+Pillow
