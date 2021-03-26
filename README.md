@@ -69,7 +69,7 @@ for the course:
    * Linux/macOS: `pip install --upgrade -r requirements.txt`
    * Windows: `conda install --file requirements.txt`
 1. You can deactivate the environment whenever you are done with `deactivate`
-   
+
 [git]: https://git-scm.com
 [python]: https://www.python.org
 [scipy]: https://www.scipy.org
